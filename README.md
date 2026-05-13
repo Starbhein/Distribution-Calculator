@@ -24,3 +24,11 @@
 3. Theoretical & empirical variance.
 4. Theoretical & empirical Standar deviation.
 5. Briefly explanation
+
+#### How the program works
+
+##### **Double buffered concurrency pattern with use of containment**
+
+##### n! improvement, use of Gamma function
+
+#####
