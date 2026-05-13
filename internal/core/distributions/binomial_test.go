@@ -10,6 +10,7 @@ func TestBinomial(t *testing.T) {
 			EP: 0.8,
 			N:  20,
 		}
+		obj.Avg()
 	})
 }
 
