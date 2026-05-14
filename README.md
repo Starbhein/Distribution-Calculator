@@ -3,6 +3,10 @@
 ## Discrete Distribution Variable **Distribution covered**
 
 - Binomial Distribution `On development`
+  Probability on a k case where k it's a real int number
+  $$
+  P(x = k) = C_k^n \, p^k q^{n-k} = \frac{n!}{k!(n-k)!} \, p^k q^{n-k}
+  $$
 - Poisson Distribution `On development`
 - Geometric Distribution `On development`
 - Hypergeometric Distribution `On development`
