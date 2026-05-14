@@ -7,11 +7,11 @@ type Distribution interface {
 }
 type DiscreteDistribution interface {
 	Distribution
-	PMF(k int) float64
-	PDF(k int) float64
+	PMF(k int) (float64, error)
+	PDF(k int) (float64, error)
 }
 type ContinuousDistribution interface {
 	Distribution
-	PDF(x float64) float64
-	CDF(x float64) float64
+	PDF(x float64) (float64, error)
+	CDF(x float64) (float64, error)
 }

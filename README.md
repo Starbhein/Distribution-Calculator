@@ -1,5 +1,14 @@
 # Distribution Calculator
 
+> [!NOTE]
+> The operations has a measurement error Epsilon=1^-12
+
+```Golang
+
+const epsilonFailure = 1e-12
+
+```
+
 ## Discrete Distribution Variable **Distribution covered**
 
 - Binomial Distribution `On development`
