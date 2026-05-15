@@ -1,7 +1,7 @@
 # Distribution Calculator
 
 > [!NOTE]
-> The operations has a measurement error Epsilon=1^-12
+> Operations are subjected to a measurement error Epsilon=1^-12
 
 ```Golang
 
@@ -9,41 +9,41 @@ const epsilonFailure = 1e-12
 
 ```
 
-## Discrete Distribution Variable **Distribution covered**
+## Discrete Distribution Variable **Distributions covered**
 
-- Binomial Distribution `On development`
-  Probability on a k case where k it's a real int number
+- Binomial Distribution `Under development`
+  The probability of exactly k successes when k it's an integer
 
 ```math
 P(x = k) = C_k^n \, p^k q^{n-k} = \frac{n!}{k!(n-k)!} \, p^k q^{n-k}
 ```
 
-- Poisson Distribution `On development`
-- Geometric Distribution `On development`
-- Hypergeometric Distribution `On development`
+- Poisson Distribution `Under development`
+- Geometric Distribution `Under development`
+- Hypergeometric Distribution `Under development`
 
 ## Continuous Distribution Variable **Distribution covered**
 
-- Regular Distribution `On development`
-- Uniform Distribution `On development`
-- Exponential Distribution `On development`
+- Regular Distribution `Under development`
+- Uniform Distribution `Under development`
+- Exponential Distribution `Under development`
 
 ### Main Functionalities
 
 > [!NOTE]
-> All this capabilities are designed and implemented for each different Distribution.
+> This capabilities are implemented for every distribution.
 
 1. Charts
-   Every chart has the next elements and could be viewed on the tui or exported.
+   Each chart includes the following elements that can be rendered in the tui or exported.
 2. Theoretical & empirical average.
 3. Theoretical & empirical variance.
-4. Theoretical & empirical Standar deviation.
-5. Briefly explanation
+4. Theoretical & empirical Standard deviation.
+5. Brief explanation
 
 #### How the program works
 
 ##### **Double buffered concurrency pattern with use of containment**
 
-##### n! improvement, use of Gamma function
+##### Factorial optimization via the Gamma function
 
 #####

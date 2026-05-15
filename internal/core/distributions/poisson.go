@@ -30,15 +30,29 @@ func (p Poisson) StdDev() float64 {
 
 func (p Poisson) PMF(k int) (float64, error) {
 	if k < 0 {
-		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0. ")
+		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0")
+	}
+	if k == 0 {
+		return math.Exp(-p.Lambda), nil
 	}
 	num := float64(k)*math.Log(p.Lambda) - p.Lambda
 	den, _ := math.Lgamma(float64(k + 1))
 	return math.Exp(num - den), nil
-
-	return 0, nil
 }
 
 func (p Poisson) CDF(k int) (float64, error) {
-	return 0, nil
+	if k < 0 {
+		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0")
+	}
+	var res float64
+	preliminar, err := p.PMF(0)
+	if err != nil {
+		return 0, err
+	}
+	res = preliminar
+	for i := 1; i <= k; i++ {
+		preliminar *= p.Lambda / float64(i)
+		res += preliminar
+	}
+	return res, nil
 }

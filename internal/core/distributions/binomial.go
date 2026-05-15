@@ -3,6 +3,7 @@ package distributions
 
 import (
 	"errors"
+	"fmt"
 	"math"
 )
 
@@ -29,20 +30,22 @@ func (b Binomial) Variance() float64 {
 }
 
 func (b Binomial) Avg() float64 {
-	return float64(b.N) * b.EP * (1 - b.EP)
+	return float64(b.N) * b.EP
 }
 
 func (b Binomial) StdDev() float64 {
-	return math.Sqrt(b.Avg())
+	return math.Sqrt(b.Variance())
 }
 
 func (b Binomial) PMF(k int) (float64, error) {
 	if k == 0 {
 		return math.Exp(float64(b.N) * math.Log((1 - b.EP))), nil
 	}
-	if k < 0 {
-		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0. ")
+	if k < 0 || k > b.N {
+		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0 and lower than N ")
 	}
+	// if k == 1 {
+	// }
 	nFactorial, _ := math.Lgamma(float64(b.N + 1))
 	kFactorial, _ := math.Lgamma(float64(k + 1))           // should be substract on the final operation
 	nminkFactorial, _ := math.Lgamma(float64(b.N - k + 1)) // should be substract on the final operation
@@ -53,17 +56,20 @@ func (b Binomial) PMF(k int) (float64, error) {
 
 func (b Binomial) CDF(k int) (float64, error) {
 	if k == 0 {
-		return math.Pow(float64(b.EP-1), float64(b.N)), nil
+		return math.Exp(float64(b.N) * math.Log((1 - b.EP))), nil
 	}
 	if k < 0 || k > b.N {
 		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0 and lower than N")
 	}
 	var res float64
-	for i := 0; i <= k; i++ {
-		cumulative, err := b.PMF(i)
-		if err != nil {
-			return 0.0, errors.New(err.Error())
-		}
+	cumulative, err := b.PMF(0)
+	if err != nil {
+		return 0.0, err
+	}
+	res = cumulative
+	for i := 1; i <= k; i++ {
+		fmt.Println("cumulative: ", cumulative)
+		cumulative *= (b.EP * (float64(b.N - i + 1))) / (float64(i) * (1 - b.EP))
 		res += cumulative
 	}
 	return res, nil

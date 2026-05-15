@@ -63,11 +63,3 @@ func evalFloats(t testing.TB, got, want float64) {
 		t.Errorf("got %v wanted %v, has a measurement error of: %v", got, want, math.Abs(got-want))
 	}
 }
-
-// func evalBAvg(t testing.TB, b Binomial) {
-// 	got, _ := b.Avg()
-// 	want := 16
-// 	if got-float64(want) > epsilonFailure {
-// 		t.Errorf("want %f but got %f", float64(want), got)
-// 	}
-// }
