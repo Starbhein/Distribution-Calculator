@@ -57,6 +57,16 @@ func TestBinomial(t *testing.T) {
 	})
 }
 
+func BenchmarkCDF(t *testing.B) {
+	obj, err := NewBinomial(1000, .9)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	for t.Loop() {
+		obj.CDF(999)
+	}
+}
+
 func evalFloats(t testing.TB, got, want float64) {
 	t.Helper()
 	if math.Abs(got-want) > epsilonFailure {

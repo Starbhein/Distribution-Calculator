@@ -3,7 +3,6 @@ package distributions
 
 import (
 	"errors"
-	"fmt"
 	"math"
 )
 
@@ -44,8 +43,6 @@ func (b Binomial) PMF(k int) (float64, error) {
 	if k < 0 || k > b.N {
 		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0 and lower than N ")
 	}
-	// if k == 1 {
-	// }
 	nFactorial, _ := math.Lgamma(float64(b.N + 1))
 	kFactorial, _ := math.Lgamma(float64(k + 1))           // should be substract on the final operation
 	nminkFactorial, _ := math.Lgamma(float64(b.N - k + 1)) // should be substract on the final operation
@@ -61,6 +58,9 @@ func (b Binomial) CDF(k int) (float64, error) {
 	if k < 0 || k > b.N {
 		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0 and lower than N")
 	}
+	if k == b.N {
+		return 1, nil
+	}
 	var res float64
 	cumulative, err := b.PMF(0)
 	if err != nil {
@@ -68,7 +68,6 @@ func (b Binomial) CDF(k int) (float64, error) {
 	}
 	res = cumulative
 	for i := 1; i <= k; i++ {
-		fmt.Println("cumulative: ", cumulative)
 		cumulative *= (b.EP * (float64(b.N - i + 1))) / (float64(i) * (1 - b.EP))
 		res += cumulative
 	}

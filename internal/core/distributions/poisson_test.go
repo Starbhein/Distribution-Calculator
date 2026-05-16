@@ -41,3 +41,8 @@ func TestPoisson(t *testing.T) {
 		evalFloats(t, gotStdDev, wantStdDev)
 	})
 }
+
+// func BenchmarkPoissonCDF(b *testing.B) {
+// for b.Loop() {
+// 	}
+// }
