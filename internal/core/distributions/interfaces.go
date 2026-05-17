@@ -1,5 +1,7 @@
 package distributions
 
+// Distribution interface Defines the probability distributions behavior
+// The operations guarantee the most efficient and precise result
 type Distribution interface {
 	Avg() float64
 	Variance() float64
