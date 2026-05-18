@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"errors"
 	"math"
 	"math/rand/v2"
 )
@@ -16,15 +17,21 @@ func NewSimulatorEngine(seed1, seed2 uint64) *SimulatorEngine {
 }
 
 func (engine *SimulatorEngine) FillPoisson(buffer []float64, lambda float64) error {
-	// Knuth's random generator poisson algorithm
-	L := math.Exp(-lambda)
-	for i := range buffer {
-		k := 0
-		p := float64(1)
-		for p > L {
-			k++
-			p *= engine.prng.Float64()
-		}
-		buffer[i] = float64(k - 1)
+	if lambda < 0 || lambda > 600 {
+		return errors.New("lambda must be between 0 and 600")
 	}
+	for i := range buffer {
+
+		u := engine.prng.Float64()
+		p := math.Exp(-lambda)
+		f := p
+		k := 0
+		for u > f {
+			k++
+			p *= lambda / float64(k)
+			f += p
+		}
+		buffer[i] = float64(k)
+	}
+	return nil
 }
