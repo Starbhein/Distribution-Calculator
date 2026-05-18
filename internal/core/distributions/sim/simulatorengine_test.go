@@ -41,8 +41,24 @@ func TestFillPoisson(t *testing.T) {
 		}
 		value := stats.AnalyzeBuffer(testingSlice)
 		fmt.Printf("%v \t %v \t %v ", value.Avg, value.Count, value.Variance)
-		if value.Avg-15.0 > epsilon {
+		if 15.0-value.Avg > epsilon {
 			t.Errorf("%v got wanted %v, error of %v", value.Avg, 15.0, value.Avg-15.0)
+		}
+	})
+}
+
+func TestFillExponential(t *testing.T) {
+	t.Run("simulating an exponential distribution with the seed 42,42", func(t *testing.T) {
+		testingSlice := make([]float64, 1000000)
+		eng := NewSimulatorEngine(42, 42)
+		err := eng.FillExponential(testingSlice, .2)
+		if err != nil {
+			t.Error(err)
+		}
+		value := stats.AnalyzeBuffer(testingSlice)
+		fmt.Printf("exponential: %v \t %v \t %v ", value.Avg, value.Count, value.Variance)
+		if 5.0-value.Avg > epsilon {
+			t.Errorf("%v got wanted %v, error of %v", value.Avg, 5.0, value.Avg-5.0)
 		}
 	})
 }

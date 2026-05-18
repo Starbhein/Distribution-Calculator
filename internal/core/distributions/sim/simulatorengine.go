@@ -54,3 +54,15 @@ func (engine *SimulatorEngine) FillPoisson(buffer []float64, lambda float64) err
 	}
 	return nil
 }
+
+func (engine *SimulatorEngine) FillExponential(buffer []float64, lambda float64) error {
+	if lambda < 0 || lambda > 600 {
+		return errors.New("lambda must be between 0 and 600")
+	}
+
+	for i := range buffer {
+		aleatoryNumber := 1.0 - engine.prng.Float64()
+		buffer[i] = -math.Log(aleatoryNumber) / lambda
+	}
+	return nil
+}
