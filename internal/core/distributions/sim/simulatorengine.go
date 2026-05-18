@@ -16,6 +16,25 @@ func NewSimulatorEngine(seed1, seed2 uint64) *SimulatorEngine {
 	return &SimulatorEngine{prng: rand.New(source)}
 }
 
+func (engine *SimulatorEngine) FillBinomial(buffer []float64, trials int64, successProbability float64) error {
+	pRatio := successProbability / float64(1-successProbability)
+	for i := range buffer {
+		aleatoryNumber := engine.prng.Float64()
+		pdf := math.Pow((1.0 - successProbability), float64(trials))
+		cdf := pdf
+		k := 0
+
+		for aleatoryNumber > cdf {
+			k++
+			pdf *= pRatio * (float64(int(trials)-k+1) / float64(k))
+			// (successProbability * (float64(bufferSize - k + 1))) / float64(k) * (1 - successProbability)
+			cdf += pdf
+		}
+		buffer[i] = float64(k)
+	}
+	return nil
+}
+
 func (engine *SimulatorEngine) FillPoisson(buffer []float64, lambda float64) error {
 	if lambda < 0 || lambda > 600 {
 		return errors.New("lambda must be between 0 and 600")
