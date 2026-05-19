@@ -3,6 +3,8 @@ module github.com/Starbhein/DistCalc
 go 1.26.2
 
 require (
+	charm.land/bubbles/v2 v2.1.0 // indirect
+	charm.land/bubbletea/v2 v2.0.6 // indirect
 	charm.land/lipgloss/v2 v2.0.3 // indirect
 	github.com/NimbleMarkets/ntcharts v0.5.1 // indirect
 	github.com/NimbleMarkets/ntcharts/v2 v2.0.3 // indirect
