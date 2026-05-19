@@ -27,7 +27,6 @@ func (engine *SimulatorEngine) FillBinomial(buffer []float64, trials int64, succ
 		for aleatoryNumber > cdf {
 			k++
 			pdf *= pRatio * (float64(int(trials)-k+1) / float64(k))
-			// (successProbability * (float64(bufferSize - k + 1))) / float64(k) * (1 - successProbability)
 			cdf += pdf
 		}
 		buffer[i] = float64(k)
