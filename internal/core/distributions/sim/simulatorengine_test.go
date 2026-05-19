@@ -2,6 +2,7 @@ package sim
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/Starbhein/DistCalc/internal/core/stats"
@@ -42,6 +43,23 @@ func TestFillPoisson(t *testing.T) {
 		value := stats.AnalyzeBuffer(testingSlice)
 		fmt.Printf("%v \t %v \t %v ", value.Avg, value.Count, value.Variance)
 		if 15.0-value.Avg > epsilon {
+			t.Errorf("%v got wanted %v, error of %v", value.Avg, 15.0, value.Avg-15.0)
+		}
+	})
+}
+
+func TestFillHypergeometric(t *testing.T) {
+	t.Run("simulating a hypergeometric distribution with N=50, m=20,n=10", func(t *testing.T) {
+		testingSlice := make([]float64, 1000000)
+		eng := NewSimulatorEngine(42, 42)
+		err := eng.FillHypergeometric(testingSlice, 20, 10, 50)
+		if err != nil {
+			t.Error(err)
+		}
+		const wantAvg = 10.0 * (20.0 / 50.0)
+		value := stats.AnalyzeBuffer(testingSlice)
+		fmt.Printf("%v \t %v \t %v ", value.Avg, value.Count, value.Variance)
+		if math.Abs(wantAvg-value.Avg) > epsilon {
 			t.Errorf("%v got wanted %v, error of %v", value.Avg, 15.0, value.Avg-15.0)
 		}
 	})

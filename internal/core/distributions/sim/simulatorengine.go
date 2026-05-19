@@ -55,6 +55,44 @@ func (engine *SimulatorEngine) FillPoisson(buffer []float64, lambda float64) err
 	return nil
 }
 
+func (engine *SimulatorEngine) FillHypergeometric(buffer []float64, m, nsample, n float64) error {
+	if nsample > n {
+		return errors.New("the sample size must be lower than the N population size")
+	}
+	startK := 0.0
+	if nsample > (n - m) {
+		startK = nsample - (n - m)
+	}
+	gammaM, _ := math.Lgamma(m + 1)
+	gammaK, _ := math.Lgamma(startK + 1)
+	gammaMminK, _ := math.Lgamma(m - startK + 1)
+	gammaNminM, _ := math.Lgamma(n - m + 1)
+	gammaSampleMinK, _ := math.Lgamma(nsample - startK + 1)
+	gammaNminMminSamplePlusK, _ := math.Lgamma(n - m - nsample + startK + 1)
+	gammaN, _ := math.Lgamma(n + 1)
+	gammaSample, _ := math.Lgamma(nsample + 1)
+	gammaNminSample, _ := math.Lgamma(n - nsample + 1)
+
+	res := (gammaM - gammaK - gammaMminK) +
+		(gammaNminM - gammaSampleMinK - gammaNminMminSamplePlusK) -
+		(gammaN - gammaSample - gammaNminSample)
+	initialPdf := math.Exp(res)
+	for i := range buffer {
+		u := engine.prng.Float64()
+		p := initialPdf
+		f := p
+		k := startK
+		for u > f && float64(k) < nsample && float64(k) < n {
+			k++
+			p *= ((nsample - float64(k) + 1) * (m - float64(k) + 1)) / (float64(k) * (n - m - nsample + float64(k)))
+			f += p
+		}
+		buffer[i] = float64(k)
+	}
+
+	return nil
+}
+
 func (engine *SimulatorEngine) FillExponential(buffer []float64, lambda float64) error {
 	if lambda < 0 || lambda > 600 {
 		return errors.New("lambda must be between 0 and 600")
