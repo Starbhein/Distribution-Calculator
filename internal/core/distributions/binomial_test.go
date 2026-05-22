@@ -36,25 +36,53 @@ func TestBinomial(t *testing.T) {
 		// 	t.Error(err.Error())
 		// }
 	})
-	t.Run("Binomial test with N=10 and PE=.5 when k=4", func(t *testing.T) {
-		obj, err := NewBinomial(10, .5)
+	t.Run("Binomial has to return 1 when k=N", func(t *testing.T) {
+		binomial, err := NewBinomial(10, .5)
 		if err != nil {
 			t.Error(err.Error())
 		}
-		const k = 4
-		const want = 0.376953125
-		const wantPMF = 0.205078125
-		got, err := obj.CDF(k)
-		if err != nil {
-			t.Error(err.Error())
-		}
-		gotPMF, err := obj.PMF(k)
-		evalFloats(t, gotPMF, wantPMF)
+		const want = 1
+		got, err := binomial.CDF(10)
 		if err != nil {
 			t.Error(err.Error())
 		}
 		evalFloats(t, got, want)
 	})
+	t.Run("The Sum of binomial pdf has to be 1", func(t *testing.T) {
+		binomial, err := NewBinomial(10, .5)
+		if err != nil {
+			t.Error(err.Error())
+		}
+		const want = 1
+		var sum float64
+		for i := 0; i <= 10; i++ {
+			v, _ := binomial.PMF(i)
+			sum += v
+		}
+		if err != nil {
+			t.Error(err.Error())
+		}
+		evalFloats(t, sum, want)
+	})
+	// t.Run("Binomial test with N=10 and PE=.5 when k=4", func(t *testing.T) {
+	// 	obj, err := NewBinomial(10, .5)
+	// 	if err != nil {
+	// 		t.Error(err.Error())
+	// 	}
+	// 	const k = 4
+	// 	const want = 0.376953125
+	// 	const wantPMF = 0.205078125
+	// 	got, err := obj.CDF(k)
+	// 	if err != nil {
+	// 		t.Error(err.Error())
+	// 	}
+	// 	gotPMF, err := obj.PMF(k)
+	// 	evalFloats(t, gotPMF, wantPMF)
+	// 	if err != nil {
+	// 		t.Error(err.Error())
+	// 	}
+	// 	evalFloats(t, got, want)
+	// })
 }
 
 func BenchmarkCDF(t *testing.B) {

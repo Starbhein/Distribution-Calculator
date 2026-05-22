@@ -33,9 +33,6 @@ func (el ExponentialLambda) PDF(x float64) (float64, error) {
 	if x < 0 {
 		return 0.0, errors.New("x must be a positive number ")
 	}
-	if x == 0 {
-		return 1, nil
-	}
 	return el.Lambda * math.Exp(-el.Lambda*x), nil
 }
 

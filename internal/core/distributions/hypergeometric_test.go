@@ -52,4 +52,13 @@ func TestHypergeometric(t *testing.T) {
 		}
 		evalFloats(t, gotPMF, wantPMF)
 	})
+	t.Run("Hypergeometric the sum of pmf from 0 to k=N has to return 1 ", func(t *testing.T) {
+		const want = 1
+		var sum float64
+		for i := 0; i <= obj.M; i++ {
+			v, _ := obj.PMF(i)
+			sum += v
+		}
+		evalFloats(t, sum, want)
+	})
 }
