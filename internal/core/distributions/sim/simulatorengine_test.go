@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"fmt"
 	"math"
 	"testing"
 
@@ -24,6 +25,7 @@ func TestFillBinomial(t *testing.T) {
 		const wantedAvg = 25.0
 		const wantedVariance = 12.5
 		result := stats.AnalyzeBuffer(testingSlice)
+		fmt.Printf("%v\n%v\n%v", result.Variance, result.Avg, result.Count)
 		evalEmpiricalStats(t, result, wantedAvg, wantedVariance)
 	})
 }

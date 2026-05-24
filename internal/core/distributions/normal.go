@@ -39,6 +39,6 @@ func (n Normal) PDF(x float64) (float64, error) {
 }
 
 func (n Normal) CDF(x float64) (float64, error) {
-	f := 0.5 * (1 + math.Erf((x-n.Average)/(n.StdandardDeviation*math.Sqrt(2))))
-	return f, nil
+	z := (x - n.Average) / (n.StdandardDeviation * math.Sqrt(2))
+	return 0.5 * math.Erfc(-z), nil
 }

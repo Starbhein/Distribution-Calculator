@@ -5,6 +5,8 @@ import (
 	"math"
 )
 
+const epsilonSignificantValue = 1e-15
+
 type Poisson struct {
 	Lambda float64
 }
@@ -44,15 +46,20 @@ func (p Poisson) CDF(k int) (float64, error) {
 	if k < 0 {
 		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0")
 	}
-	var res float64
-	preliminar, err := p.PMF(0)
-	if err != nil {
-		return 0, err
+	maxValue := min(k, int(p.Lambda))
+	cumulativeR := 1.0
+	sum := 1.0
+	cumulativeL := 1.0
+	for i := maxValue - 1; i >= 0 && cumulativeL >= sum*epsilonSignificantValue; i-- {
+		cumulativeL *= float64(i+1) / p.Lambda
+		sum += cumulativeL
 	}
-	res = preliminar
-	for i := 1; i <= k; i++ {
-		preliminar *= p.Lambda / float64(i)
-		res += preliminar
+	for i := maxValue + 1; i <= k && cumulativeR >= sum*epsilonSignificantValue; i++ {
+		cumulativeR *= p.Lambda / float64(i)
+		sum += cumulativeR
 	}
-	return res, nil
+
+	num := float64(maxValue)*math.Log(p.Lambda) - p.Lambda
+	den, _ := math.Lgamma(float64(maxValue + 1))
+	return math.Exp((num - den)) * sum, nil
 }

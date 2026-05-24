@@ -4,7 +4,10 @@ import (
 	"errors"
 	"math"
 	"math/rand/v2"
+	"sort"
 )
+
+const epsilonSignificantEpsilon = 1e-18
 
 type SimulatorEngine struct {
 	prng *rand.Rand
@@ -16,20 +19,52 @@ func NewSimulatorEngine(seed1, seed2 uint64) *SimulatorEngine {
 	return &SimulatorEngine{prng: rand.New(source)}
 }
 
-func (engine *SimulatorEngine) FillBinomial(buffer []float64, trials int64, successProbability float64) error {
-	pRatio := successProbability / float64(1-successProbability)
-	for i := range buffer {
-		aleatoryNumber := engine.prng.Float64()
-		pdf := math.Pow((1.0 - successProbability), float64(trials))
-		cdf := pdf
-		k := 0
-
-		for aleatoryNumber > cdf {
-			k++
-			pdf *= pRatio * (float64(int(trials)-k+1) / float64(k))
-			cdf += pdf
+func (engine *SimulatorEngine) FillBinomial(buffer []float64, n int, success float64) error {
+	variance := float64(n) * success * (1.0 - success)
+	if variance > 9.0 {
+		stdDev := math.Sqrt(variance)
+		avg := float64(n) * success
+		for i := range buffer {
+			z := engine.prng.NormFloat64()
+			val := math.Round(avg + z*stdDev)
+			if val < 0 {
+				val = 0
+			}
+			if val > float64(n) {
+				val = float64(n)
+			}
+			buffer[i] = val
 		}
-		buffer[i] = float64(k)
+		return nil
+	}
+	preCalcI := (1.0 - success) / success
+	preCalcR := success / (1.0 - success)
+	cdfTable := make([]float64, n+1)
+	maxValue := int(float64(n) * success)
+	cumulative := 1.0
+	sum := 1.0
+	cdfTable[maxValue] = 1.0
+	for i := maxValue - 1; i >= 0 && cumulative >= sum*epsilonSignificantEpsilon; i-- {
+		cumulative *= preCalcI * (float64(i+1) / float64(n-(i+1)+1))
+		sum += cumulative
+		cdfTable[i] = cumulative
+	}
+	cumulative = 1.0
+	for i := maxValue + 1; i <= n && cumulative >= sum*epsilonSignificantEpsilon; i++ {
+		cumulative *= preCalcR * (float64(n-i+1) / float64(i))
+		sum += cumulative
+		cdfTable[i] = cumulative
+
+	}
+	cdfTable[0] /= sum
+	for i := 1; i <= n; i++ {
+		cdfTable[i] = (cdfTable[i] / sum) + cdfTable[i-1]
+	}
+	cdfTable[n] = 1.0
+	for i := range buffer {
+		u := engine.prng.Float64()
+		res := sort.Search(len(cdfTable), func(j int) bool { return cdfTable[j] >= u })
+		buffer[i] = float64(res)
 	}
 	return nil
 }
@@ -38,6 +73,22 @@ func (engine *SimulatorEngine) FillPoisson(buffer []float64, lambda float64) err
 	if lambda < 0 || lambda > 600 {
 		return errors.New("lambda must be between 0 and 600")
 	}
+	if lambda > 100 {
+		avg := lambda
+		stdDev := math.Sqrt(lambda)
+		for i := range buffer {
+
+			z := engine.prng.NormFloat64()
+			val := math.Round(avg + z*stdDev)
+			if val < 0 {
+				val = 0
+			}
+
+			buffer[i] = val
+		}
+		return nil
+	}
+	// cdfTable := make([]float64, len(buffer))
 	for i := range buffer {
 
 		u := engine.prng.Float64()
