@@ -57,22 +57,32 @@ func (h Hypergeometric) CDF(k int) (float64, error) {
 	if k > h.NSample {
 		return 0, errors.New("k must be lower or equals than the sample's size")
 	}
+
 	if k < 0 {
 		return 0, errors.New("k must be greater than 0")
 	}
-	var res float64
-	cumulative, err := h.PMF(0)
-	if err != nil {
-		return 0, err
+	maxValue := min(k, int(float64(h.NSample)*float64(h.M)/float64(h.N)))
+	sum := 1.0
+	cumulative := 1.0
+	for i := maxValue - 1; i >= 0 && cumulative >= sum*epsilonSignificantValue; i++ {
+		cumulative *= (float64(i+1) / float64(h.M-(i+1)+1)) * (float64(h.N-h.M-h.NSample+(i+1)) / float64(h.NSample-(i+1)+1))
+		sum += cumulative
 	}
-	if k == 0 {
-		return cumulative, nil
+	cumulative = 1.0
+	for i := maxValue + 1; i <= k && cumulative >= sum*epsilonSignificantValue; i++ {
+		cumulative *= (float64(h.M-i+1) / float64(i)) * (float64(h.NSample-i+1) / float64(h.N-h.M-h.NSample+i))
+		sum += cumulative
 	}
-	res = cumulative
-	for i := 1; i <= k; i++ {
-		cumulative *= float64(h.M-i+1) / float64(i) * float64(h.NSample-i+1) / float64(h.N-h.M-h.NSample+i)
-		res += cumulative
-	}
+	mFactorial, _ := math.Lgamma(float64(h.M + 1))
+	kFactorial, _ := math.Lgamma(float64(maxValue + 1))
+	mminkFactorial, _ := math.Lgamma(float64(h.M - maxValue + 1))
+	nminmFactorial, _ := math.Lgamma(float64(h.N - h.M + 1))
+	nminkFactorial, _ := math.Lgamma(float64(h.NSample - maxValue + 1))
+	nminmnk, _ := math.Lgamma(float64(h.N - h.M - h.NSample + maxValue + 1))
+	nsampleFactorial, _ := math.Lgamma(float64(h.NSample + 1))
+	nminsampleFactorial, _ := math.Lgamma(float64(h.N - h.NSample + 1))
+	nFactorial, _ := math.Lgamma(float64(h.N + 1))
+	meanPMF := mFactorial - kFactorial - mminkFactorial + nminmFactorial - nminkFactorial - nminmnk + nsampleFactorial + nminsampleFactorial - nFactorial
 
-	return res, nil
+	return math.Exp(meanPMF) * sum, nil
 }

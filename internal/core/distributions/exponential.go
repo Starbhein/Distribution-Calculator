@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-// Exponential struct represents the exponential distribution
+// ExponentialLambda struct represents the exponential distribution
 type ExponentialLambda struct {
 	Lambda float64
 }
@@ -59,7 +59,7 @@ func (eb ExponentialBetha) Avg() float64 {
 }
 
 func (eb ExponentialBetha) Variance() float64 {
-	return math.Pow(eb.Beta, 2)
+	return eb.Beta * eb.Beta
 }
 
 func (eb ExponentialBetha) StdDev() float64 {
