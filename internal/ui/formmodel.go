@@ -11,6 +11,7 @@ import (
 var (
 	buttonActiveStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#E7F5DA"))
 	buttonDisabledStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F4F1E6"))
+	errorLabelStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FC869C"))
 )
 
 type FormModel struct {
@@ -18,6 +19,7 @@ type FormModel struct {
 	focusIndex         int
 	activeDistribution string
 	styles             styles
+	errorMap           map[int]string
 }
 type MsgForm struct {
 	Parameters []string
@@ -73,6 +75,9 @@ func (form FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 				}
 			}
 		}
+	case errorMessage:
+		form.errorMap = make(map[int]string, 1)
+		form.errorMap[msg.index] = msg.error.Error()
 	}
 	var cmd tea.Cmd
 	form.inputs[form.focusIndex], cmd = form.inputs[form.focusIndex].Update(msg)
@@ -83,6 +88,12 @@ func (form FormModel) View() tea.View {
 	var model strings.Builder
 	for i := range form.inputs {
 		model.WriteString(form.inputs[i].View())
+
+		if errM, ok := form.errorMap[i]; ok {
+			errorLabel := errorLabelStyle.Render(errM)
+
+			model.WriteString(errorLabel)
+		}
 		model.WriteString("\n\n")
 	}
 	boton := "[ ENTER para iniciar simulación ]"

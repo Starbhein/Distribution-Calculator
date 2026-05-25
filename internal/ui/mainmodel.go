@@ -34,6 +34,14 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case MsgSelectedDistribution:
 		m.state = stateForm
 		return m, nil
+	case MsgForm:
+		res, errM := Parser(msg.Parameters)
+		if errM.error != nil {
+			return nil, func() tea.Msg {
+				return errM
+			}
+		}
+		return m, func() tea.Msg {}
 
 	}
 	var cmd tea.Cmd
