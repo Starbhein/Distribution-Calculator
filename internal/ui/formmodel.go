@@ -14,6 +14,7 @@ type FormModel struct {
 	styles             styles
 	errorMap           map[int]string
 	generalError       string
+	isCLTMode          bool
 }
 type MsgForm struct {
 	Parameters []string
@@ -146,39 +147,59 @@ func (form *FormModel) BuildInputs(distribution string) {
 	case "Binomial":
 		form.inputs = append(form.inputs, createInput("Probabilidad (p)"))
 		form.inputs = append(form.inputs, createInput("Ensayos (N)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	case "Poisson":
 		form.inputs = append(form.inputs, createInput("Lambda (λ)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	case "Hypergeométrica":
 		form.inputs = append(form.inputs, createInput("Tamaño poblacional (N)"))
 		form.inputs = append(form.inputs, createInput("Número de exitos (M)"))
 		form.inputs = append(form.inputs, createInput("Tamaño de muestra (n)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	case "Normal":
 		form.inputs = append(form.inputs, createInput("Media (μ)"))
 		form.inputs = append(form.inputs, createInput("Desviación estándar (σ)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	case "Exponencial":
 		form.inputs = append(form.inputs, createInput("Lambda (λ)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	case "Exponencial (β)":
 		form.inputs = append(form.inputs, createInput("Beta (β)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	case "Bernoulli":
 		form.inputs = append(form.inputs, createInput("Probabilidad (p)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	case "Geométrica":
 		form.inputs = append(form.inputs, createInput("Probabilidad (p)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	case "Uniforme continua":
 		form.inputs = append(form.inputs, createInput("Límite inferior (a)"))
 		form.inputs = append(form.inputs, createInput("Límite superior (b)"))
-		form.inputs = append(form.inputs, createInput("X (x)"))
+		if !form.isCLTMode {
+			form.inputs = append(form.inputs, createInput("X (x)"))
+		}
 	}
-	inputDefault := createInput("Tamaño de la muestra a simular")
-	inputDefault.SetValue("1000")
-	form.inputs = append(form.inputs, inputDefault)
+	if !form.isCLTMode {
+		inputDefault := createInput("Tamaño de la muestra a simular")
+		inputDefault.SetValue("1000")
+		form.inputs = append(form.inputs, inputDefault)
+	}
 	form.focusIndex = 0
 	form.inputs[0].Focus()
 }

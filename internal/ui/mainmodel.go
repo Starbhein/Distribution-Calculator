@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 
+	"charm.land/bubbles/v2/list"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -20,6 +21,8 @@ const (
 	stateLoading
 	stateResults
 	stateLLN
+	stateCLTMenu
+	stateCLT
 )
 
 type MainModel struct {
@@ -27,6 +30,7 @@ type MainModel struct {
 	darkBG             bool
 	state              sessionState
 	menu               MenuModel
+	cltMenu            MenuModel
 	form               FormModel
 	width, height      int
 	spinner            spinner.Model
@@ -37,6 +41,8 @@ type MainModel struct {
 	chartView          string
 	exportMsg          string
 	llnView            string
+	cltView            string
+	isCLTMode          bool
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -47,13 +53,21 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "esc":
 			switch m.state {
-			case stateForm, stateResults, stateLLN:
+			case stateForm, stateResults, stateLLN, stateCLT:
 				m.state = stateMenu
 				m.chartBuffer = nil
 				m.distParams = nil
 				m.chartView = ""
 				m.exportMsg = ""
 				m.llnView = ""
+				m.cltView = ""
+				m.isCLTMode = false
+				m.form.isCLTMode = false
+				return m, nil
+			case stateCLTMenu:
+				m.state = stateMenu
+				m.isCLTMode = false
+				m.form.isCLTMode = false
 				return m, nil
 			}
 		case "e":
@@ -98,9 +112,17 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.menu.menu.SetSize(m.width, m.height)
+		m.cltMenu.menu.SetSize(m.width, m.height)
 		return m, nil
 	case MsgSelectedDistribution:
+		if msg.Distribution == "Teorema del Límite Central" {
+			m.state = stateCLTMenu
+			m.isCLTMode = true
+			m.form.isCLTMode = true
+			return m, nil
+		}
 		m.state = stateForm
+		m.form.isCLTMode = m.isCLTMode
 		m.form.BuildInputs(msg.Distribution)
 		return m, nil
 	case MsgForm:
@@ -113,6 +135,21 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(parsed) == 0 {
 			return m, nil
 		}
+
+		// CLT mode: all parsed values are distribution params (no sample size input)
+		if m.isCLTMode {
+			params := parsed
+			if errV := ValidateParams(m.form.activeDistribution, params); errV.error != nil {
+				return m, func() tea.Msg {
+					return errV
+				}
+			}
+			m.distParams = params
+			m.activeDistribution = m.form.activeDistribution
+			m.state = stateLoading
+			return m, RunCLTCmd(m.activeDistribution, m.distParams)
+		}
+
 		sampleSize := int(parsed[len(parsed)-1])
 		if sampleSize <= 0 {
 			return m, func() tea.Msg {
@@ -173,6 +210,10 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateLLN
 		m.llnView = RenderLLN(msg.Steps, msg.TheoreticalMean, msg.Dist, msg.Params, m.width)
 		return m, nil
+	case MsgCLTDone:
+		m.state = stateCLT
+		m.cltView = RenderCLT(msg.Means, msg.Dist, msg.Params, msg.TheoreticalMean, msg.TheoreticalSE, m.width, m.height)
+		return m, nil
 	case errorMessage:
 		m.state = stateForm
 		var cmd tea.Cmd
@@ -188,6 +229,10 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case stateMenu:
 		updateModel, cmd := m.menu.Update(msg)
 		m.menu = updateModel
+		return m, cmd
+	case stateCLTMenu:
+		updateModel, cmd := m.cltMenu.Update(msg)
+		m.cltMenu = updateModel
 		return m, cmd
 	case stateForm:
 		m.form, cmd = m.form.Update(msg)
@@ -231,8 +276,15 @@ func (m MainModel) View() tea.View {
 	switch m.state {
 	case stateMenu:
 		return m.menu.View()
+	case stateCLTMenu:
+		return m.cltMenu.View()
 	case stateForm:
-		initText := titleh1Style.Render("Seleccioná los parámetros a la izquierda") + "\n" + secondaryTextStyle().Render("y presioná ENTER para simular")
+		var initText string
+		if m.isCLTMode {
+			initText = titleh1Style.Render("Selecciona los parámetros para el TLC") + "\n" + secondaryTextStyle().Render("y presiona ENTER para simular")
+		} else {
+			initText = titleh1Style.Render("Selecciona los parámetros a la izquierda") + "\n" + secondaryTextStyle().Render("y presiona ENTER para simular")
+		}
 		rightContent = rightBoxStyle.Render(initText)
 	case stateLoading:
 		spinnerView := m.spinner.View() + " " + secondaryTextStyle().Render("Calculando simulación...")
@@ -243,6 +295,22 @@ func (m MainModel) View() tea.View {
 			llnContent = "Cargando..."
 		}
 		resultsView := llnContent + "\n" + mutedStyle.Render("[ESC] volver al menú")
+		resultsStyle := lipgloss.NewStyle().
+			Width(rightWidth).
+			Height(m.height-2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(borderDefault).
+			Background(bgSecondary).
+			Foreground(textPrimary).
+			Padding(1, 2).
+			Align(lipgloss.Left, lipgloss.Top)
+		rightContent = resultsStyle.Render(resultsView)
+	case stateCLT:
+		cltContent := m.cltView
+		if cltContent == "" {
+			cltContent = "Cargando..."
+		}
+		resultsView := cltContent + "\n" + mutedStyle.Render("[ESC] volver al menú")
 		resultsStyle := lipgloss.NewStyle().
 			Width(rightWidth).
 			Height(m.height-2).
@@ -319,10 +387,25 @@ func NewMainModel() MainModel {
 
 	model.styles = newStyles(false)
 	model.menu = NewMenuModel()
+	model.cltMenu = newCLTMenuModel()
 	model.state = stateMenu
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = spinnerStyle
 	model.spinner = s
 	return model
+}
+
+// newCLTMenuModel creates a menu with only the distribution options (no TLC entry).
+func newCLTMenuModel() MenuModel {
+	m := MenuModel{}
+	m.styles = newStyles(false)
+	options := initDistributionOptions()
+	// Remove the last option which is the TLC entry
+	if len(options) > 0 {
+		options = options[:len(options)-1]
+	}
+	m.menu = list.New(options, list.NewDefaultDelegate(), 500, 500)
+	m.menu.Title = "Selecciona una distribución para el TLC"
+	return m
 }
