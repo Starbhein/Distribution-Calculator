@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-const distributionQuantity = 5
+const distributionQuantity = 10
 
 type styles struct {
 	app           lipgloss.Style
@@ -15,17 +15,19 @@ type styles struct {
 }
 
 func newStyles(darkBG bool) styles {
-	lightDark := lipgloss.LightDark(darkBG)
-
 	return styles{
 		app: lipgloss.NewStyle().
-			Padding(1, 2).Align(lipgloss.Center, lipgloss.Center),
+			Padding(1, 2).
+			Align(lipgloss.Center, lipgloss.Center).
+			Background(bgPrimary).
+			Foreground(textPrimary),
 		title: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#C678DD")).
-			Background(lipgloss.Color("#FF2079")).
-			Padding(0, 1).Align(lipgloss.Center, lipgloss.Center),
+			Foreground(colTitleH1).
+			Background(bgElevated).
+			Padding(0, 1).
+			Align(lipgloss.Center, lipgloss.Center),
 		statusMessage: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#04005E"), lipgloss.Color("#C678DD"))),
+			Foreground(textSecondary),
 	}
 }
 
@@ -85,9 +87,9 @@ func NewMenuModel() MenuModel {
 }
 
 func initDistributionOptions() []list.Item {
-	options := []string{"Binomial", "Poisson", "Hypergeométrica", "Normal", "Exponencial"}
+	options := []string{"Binomial", "Poisson", "Hypergeométrica", "Normal", "Exponencial(λ)", "Exponencial (β)", "Bernoulli", "Geométrica", "Uniforme continua", "Teorema del Límite Central"}
 	descriptions := []string{
-		"B~(x,n,p) where n*p <=5 ", "P~(x,λ) and P~(x,β)", "H~(x,m,k,N)", "N~(x),Z normalization", "e~(λ)",
+		"B~(x,n,p) si n*p <=5 ", "P~(x,λ)", "H~(x,m,k,N)", "N~(x),Z normalizada", "e~(λ)", "e~(β) cuando β=1/λ", "Ber~(p)", "G~(p)", "U~(a,b)", "TLC — medias muestrales → Normal",
 	}
 	res := make([]list.Item, distributionQuantity)
 	for i := range res {
