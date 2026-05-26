@@ -132,10 +132,6 @@ func runSimulationOnce(distribution string, params []float64, sampleSize int) ([
 		sampleSize = 1000
 	}
 
-	if errM := ValidateParams(distribution, params); errM.error != nil {
-		return nil, stats.EmpiricalStats{}, errM.error
-	}
-
 	buffer := make([]float64, sampleSize)
 	numGoroutines := concurrentWorkers
 	if sampleSize < numGoroutines {

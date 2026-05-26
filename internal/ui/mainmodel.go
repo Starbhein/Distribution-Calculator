@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
@@ -113,7 +114,25 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		sampleSize := int(parsed[len(parsed)-1])
-		m.distParams = parsed[:len(parsed)-1]
+		if sampleSize <= 0 {
+			return m, func() tea.Msg {
+				return errorMessage{error: errors.New("el tamaño de muestra debe ser mayor que 0"), index: len(m.form.inputs) - 1}
+			}
+		}
+		if sampleSize > 10_000_000 {
+			return m, func() tea.Msg {
+				return errorMessage{error: errors.New("el tamaño de muestra no puede superar 10.000.000"), index: len(m.form.inputs) - 1}
+			}
+		}
+		params := parsed[:len(parsed)-1]
+
+		if errV := ValidateParams(m.form.activeDistribution, params); errV.error != nil {
+			return m, func() tea.Msg {
+				return errV
+			}
+		}
+
+		m.distParams = params
 		m.activeDistribution = m.form.activeDistribution
 		m.state = stateLoading
 		return m, RunSimulationCmd(m.activeDistribution, m.distParams, sampleSize)
@@ -139,10 +158,14 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if contentWidth < 20 {
 				contentWidth = 20
 			}
+			maxChartLines := m.height - 18
+			if maxChartLines < 6 {
+				maxChartLines = 6
+			}
 			if isDiscreteDistribution(m.activeDistribution) {
-				m.chartView = RenderDiscreteHistogram(m.chartBuffer, m.activeDistribution, m.distParams, markValue, contentWidth)
+				m.chartView = RenderDiscreteHistogram(m.chartBuffer, m.activeDistribution, m.distParams, markValue, contentWidth, maxChartLines)
 			} else {
-				m.chartView = RenderContinuousHistogram(m.chartBuffer, m.activeDistribution, m.distParams, markValue, contentWidth)
+				m.chartView = RenderContinuousHistogram(m.chartBuffer, m.activeDistribution, m.distParams, markValue, contentWidth, maxChartLines)
 			}
 		}
 		return m, nil
@@ -150,6 +173,11 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.state = stateLLN
 		m.llnView = RenderLLN(msg.Steps, msg.TheoreticalMean, msg.Dist, msg.Params, m.width)
 		return m, nil
+	case errorMessage:
+		m.state = stateForm
+		var cmd tea.Cmd
+		m.form, cmd = m.form.Update(msg)
+		return m, cmd
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)

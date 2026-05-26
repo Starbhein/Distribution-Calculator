@@ -24,19 +24,19 @@ func RenderHistogram(data []float64, isDiscrete bool, contentWidth int, markValu
 }
 
 // RenderDiscreteHistogram muestra histograma empírico con PMF teórica al lado.
-func RenderDiscreteHistogram(data []float64, dist string, params []float64, markValue float64, contentWidth int) string {
+func RenderDiscreteHistogram(data []float64, dist string, params []float64, markValue float64, contentWidth int, maxLines int) string {
 	if len(data) == 0 {
 		return "Sin datos para graficar"
 	}
-	return renderDiscreteWithTheory(data, dist, params, markValue, contentWidth)
+	return renderDiscreteWithTheory(data, dist, params, markValue, contentWidth, maxLines)
 }
 
 func renderDiscrete(data []float64, contentWidth int, markValue float64) string {
-	return renderDiscreteWithTheory(data, "", nil, markValue, contentWidth)
+	return renderDiscreteWithTheory(data, "", nil, markValue, contentWidth, 0)
 }
 
 // renderDiscreteWithTheory muestra histograma empírico + PMF teórica para discretas.
-func renderDiscreteWithTheory(data []float64, dist string, params []float64, markValue float64, contentWidth int) string {
+func renderDiscreteWithTheory(data []float64, dist string, params []float64, markValue float64, contentWidth int, maxLines int) string {
 	freq := make(map[int]int)
 	for _, v := range data {
 		k := int(math.Round(v))
@@ -64,8 +64,48 @@ func renderDiscreteWithTheory(data []float64, dist string, params []float64, mar
 	}
 
 	markedK := int(math.Round(markValue))
+
+	selectedKeys := keys
+	truncated := 0
+	if maxLines > 0 && len(keys) > maxLines {
+		type pair struct {
+			k     int
+			count int
+		}
+		pairs := make([]pair, 0, len(keys))
+		for _, k := range keys {
+			pairs = append(pairs, pair{k, freq[k]})
+		}
+		sort.Slice(pairs, func(i, j int) bool {
+			return pairs[i].count > pairs[j].count
+		})
+
+		selected := make(map[int]bool, maxLines)
+		for i := 0; i < maxLines-1 && i < len(pairs); i++ {
+			selected[pairs[i].k] = true
+		}
+		if !selected[markedK] {
+			selected[markedK] = true
+			if len(selected) > maxLines {
+				for i := len(pairs) - 1; i >= 0; i-- {
+					if pairs[i].k != markedK && selected[pairs[i].k] {
+						delete(selected, pairs[i].k)
+						break
+					}
+				}
+			}
+		}
+
+		selectedKeys = make([]int, 0, len(selected))
+		for k := range selected {
+			selectedKeys = append(selectedKeys, k)
+		}
+		sort.Ints(selectedKeys)
+		truncated = len(keys) - len(selectedKeys)
+	}
+
 	var sb strings.Builder
-	for _, k := range keys {
+	for _, k := range selectedKeys {
 		count := freq[k]
 		barLen := 0
 		if maxFreq > 0 {
@@ -97,6 +137,9 @@ func renderDiscreteWithTheory(data []float64, dist string, params []float64, mar
 		}
 
 		sb.WriteString(fmt.Sprintf("%4d |%s%s%s\n", k, bar, theoryStr, marker))
+	}
+	if truncated > 0 {
+		sb.WriteString(mutedStyle.Render(fmt.Sprintf("... y %d valores más\n", truncated)))
 	}
 
 	return sb.String()
@@ -149,7 +192,7 @@ func getTheoreticalPMFChart(dist string, params []float64, k int) float64 {
 }
 
 // RenderContinuousHistogram muestra histograma empírico con PDF teórica al lado.
-func RenderContinuousHistogram(data []float64, dist string, params []float64, markValue float64, contentWidth int) string {
+func RenderContinuousHistogram(data []float64, dist string, params []float64, markValue float64, contentWidth int, maxLines int) string {
 	if len(data) == 0 {
 		return "Sin datos para graficar"
 	}
