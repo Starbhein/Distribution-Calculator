@@ -9,9 +9,15 @@ import (
 )
 
 var (
-	buttonActiveStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#E7F5DA"))
-	buttonDisabledStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F4F1E6"))
-	errorLabelStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FC869C"))
+	buttonActiveStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B"))
+	buttonDisabledStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#8BE9FD"))
+	errorLabelStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5555"))
+	focusedStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF79C6"))
+	blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#BD93F9"))
+	mutedStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C4E7A"))
+
+	warningStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C"))
+	titleh1Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#C678DD"))
 )
 
 type FormModel struct {
@@ -74,9 +80,14 @@ func (form FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 					}
 				}
 			}
+
+		default:
+			delete(form.errorMap, form.focusIndex)
 		}
 	case errorMessage:
-		form.errorMap = make(map[int]string, 1)
+		if form.errorMap == nil {
+			form.errorMap = make(map[int]string)
+		}
 		form.errorMap[msg.index] = msg.error.Error()
 	}
 	var cmd tea.Cmd
@@ -119,8 +130,17 @@ func (form *FormModel) BuildInputs(distribution string) {
 	createInput := func(placeholder string) textinput.Model {
 		ti := textinput.New()
 		ti.Placeholder = placeholder
+		s := ti.Styles()
+		s.Focused.Placeholder = focusedStyle
+		s.Focused.Text = focusedStyle
+		s.Focused.Prompt = focusedStyle
+		s.Cursor.Shape = tea.CursorBar
+		s.Cursor.Blink = true
+		s.Blurred.Prompt = blurredStyle
+		s.Blurred.Placeholder = mutedStyle
 		ti.CharLimit = 15
 		ti.SetWidth(20)
+		ti.SetStyles(s)
 		return ti
 	}
 	switch distribution {

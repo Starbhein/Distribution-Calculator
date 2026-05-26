@@ -19,13 +19,13 @@ func newStyles(darkBG bool) styles {
 
 	return styles{
 		app: lipgloss.NewStyle().
-			Padding(1, 2).Align(lipgloss.Center),
+			Padding(1, 2).Align(lipgloss.Center, lipgloss.Center),
 		title: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF2079")).
-			Background(lipgloss.Color("#440BD4")).
-			Padding(0, 1),
+			Foreground(lipgloss.Color("#C678DD")).
+			Background(lipgloss.Color("#FF2079")).
+			Padding(0, 1).Align(lipgloss.Center, lipgloss.Center),
 		statusMessage: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#04005E"), lipgloss.Color("#04B575"))),
+			Foreground(lightDark(lipgloss.Color("#04005E"), lipgloss.Color("#C678DD"))),
 	}
 }
 
