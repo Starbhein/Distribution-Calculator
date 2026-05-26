@@ -18,6 +18,7 @@ const (
 	stateForm
 	stateLoading
 	stateResults
+	stateLLN
 )
 
 type MainModel struct {
@@ -34,6 +35,7 @@ type MainModel struct {
 	distParams         []float64
 	chartView          string
 	exportMsg          string
+	llnView            string
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -44,12 +46,13 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "esc":
 			switch m.state {
-			case stateForm, stateResults:
+			case stateForm, stateResults, stateLLN:
 				m.state = stateMenu
 				m.chartBuffer = nil
 				m.distParams = nil
 				m.chartView = ""
 				m.exportMsg = ""
+				m.llnView = ""
 				return m, nil
 			}
 		case "e":
@@ -83,6 +86,12 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.exportMsg = fmt.Sprintf("✓ CSV guardado: %s", filename)
 				}
 				return m, nil
+			}
+		case "l":
+			if m.state == stateResults {
+				m.state = stateLoading
+				theo, _ := ComputeTheoreticalStats(m.activeDistribution, m.distParams)
+				return m, RunLLNCmd(m.activeDistribution, m.distParams, 8, 10, 2, theo.Avg)
 			}
 		}
 	case tea.WindowSizeMsg:
@@ -136,6 +145,10 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.chartView = RenderContinuousHistogram(m.chartBuffer, m.activeDistribution, m.distParams, markValue, contentWidth)
 			}
 		}
+		return m, nil
+	case MsgLLNDone:
+		m.state = stateLLN
+		m.llnView = RenderLLN(msg.Steps, msg.TheoreticalMean, msg.Dist, msg.Params, m.width)
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -196,6 +209,22 @@ func (m MainModel) View() tea.View {
 	case stateLoading:
 		spinnerView := m.spinner.View() + " " + secondaryTextStyle().Render("Calculando simulación...")
 		rightContent = rightBoxStyle.Render(spinnerView)
+	case stateLLN:
+		llnContent := m.llnView
+		if llnContent == "" {
+			llnContent = "Cargando..."
+		}
+		resultsView := llnContent + "\n" + mutedStyle.Render("[ESC] volver al menú")
+		resultsStyle := lipgloss.NewStyle().
+			Width(rightWidth).
+			Height(m.height-2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(borderDefault).
+			Background(bgSecondary).
+			Foreground(textPrimary).
+			Padding(1, 2).
+			Align(lipgloss.Left, lipgloss.Top)
+		rightContent = resultsStyle.Render(resultsView)
 	case stateResults:
 		theo, _ := ComputeTheoreticalStats(m.activeDistribution, m.distParams)
 		probs, _ := ComputeProbabilities(m.activeDistribution, m.distParams)
@@ -238,7 +267,7 @@ func (m MainModel) View() tea.View {
 			exportSection = "\n" + warningStyle.Render(m.exportMsg)
 		}
 
-		resultsView := comparison + probSection + chartSection + exportSection + "\n" + mutedStyle.Render("[ESC] volver  [e] PNG  [s] SVG  [c] CSV")
+		resultsView := comparison + probSection + chartSection + exportSection + "\n" + mutedStyle.Render("[ESC] volver  [e] PNG  [s] SVG  [c] CSV  [l] LLN")
 
 		resultsStyle := lipgloss.NewStyle().
 			Width(rightWidth).

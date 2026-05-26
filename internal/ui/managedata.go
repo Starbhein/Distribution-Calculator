@@ -125,127 +125,133 @@ func ValidateParams(distribution string, params []float64) errorMessage {
 	return errorMessage{}
 }
 
+// runSimulationOnce ejecuta una simulación sincrónica y retorna datos + stats.
+// Reutilizable por RunSimulationCmd y RunLLNCmd.
+func runSimulationOnce(distribution string, params []float64, sampleSize int) ([]float64, stats.EmpiricalStats, error) {
+	if sampleSize <= 0 {
+		sampleSize = 1000
+	}
+
+	if errM := ValidateParams(distribution, params); errM.error != nil {
+		return nil, stats.EmpiricalStats{}, errM.error
+	}
+
+	buffer := make([]float64, sampleSize)
+	numGoroutines := concurrentWorkers
+	if sampleSize < numGoroutines {
+		numGoroutines = sampleSize
+	}
+	chunkSize := sampleSize / numGoroutines
+
+	var wg sync.WaitGroup
+	accumulators := make([]stats.WelfordAccumulator, numGoroutines)
+
+	// Pre-build CDF tables once to share across workers
+	var binomialCDF []float64
+	var poissonCDF []float64
+	var hypergeoCDF []float64
+	var hypergeoErr error
+
+	switch distribution {
+	case "Binomial":
+		n := int(params[1])
+		p := params[0]
+		variance := float64(n) * p * (1.0 - p)
+		if variance <= 9.0 {
+			binomialCDF = sim.BuildBinomialCDFTable(n, p)
+		}
+	case "Poisson":
+		lambda := params[0]
+		if lambda > 10.0 && lambda <= 100.0 {
+			poissonCDF = sim.BuildPoissonCDFTable(lambda)
+		}
+	case "Hypergeométrica":
+		N := params[0]
+		M := params[1]
+		n := params[2]
+		variance := n * (M / N) * ((N - M) / N) * ((N - n) / (N - 1))
+		if variance <= 9.0 {
+			hypergeoCDF, _, _, hypergeoErr = sim.BuildHypergeometricCDFTable(M, n, N)
+		}
+	}
+	if hypergeoErr != nil {
+		return nil, stats.EmpiricalStats{}, hypergeoErr
+	}
+
+	for g := 0; g < numGoroutines; g++ {
+		wg.Add(1)
+		start := g * chunkSize
+		end := start + chunkSize
+		if g == numGoroutines-1 {
+			end = sampleSize
+		}
+
+		go func(id int, subBuffer []float64) {
+			defer wg.Done()
+
+			engine := sim.NewSimulatorEngine(uint64(id+1), 42)
+			var fillErr error
+
+			switch distribution {
+			case "Binomial":
+				n := int(params[1])
+				p := params[0]
+				fillErr = engine.FillBinomial(subBuffer, n, p, binomialCDF)
+			case "Poisson":
+				fillErr = engine.FillPoisson(subBuffer, params[0], poissonCDF)
+			case "Hypergeométrica":
+				fillErr = engine.FillHypergeometric(subBuffer, params[1], params[2], params[0], hypergeoCDF)
+			case "Normal":
+				fillErr = engine.FillNormal(subBuffer, params[0], params[1])
+			case "Exponencial":
+				fillErr = engine.FillExponential(subBuffer, params[0])
+			case "Exponencial (β)":
+				fillErr = engine.FillExponential(subBuffer, 1.0/params[0])
+			case "Bernoulli":
+				fillErr = engine.FillBernoulli(subBuffer, params[0])
+			case "Geométrica":
+				fillErr = engine.FillGeometric(subBuffer, params[0])
+			case "Uniforme continua":
+				fillErr = engine.FillUniformContinuous(subBuffer, params[0], params[1])
+			}
+
+			if fillErr != nil {
+				return
+			}
+
+			for _, val := range subBuffer {
+				accumulators[id].Update(val)
+			}
+		}(g, buffer[start:end])
+	}
+
+	wg.Wait()
+
+	merged := accumulators[0]
+	for i := 1; i < len(accumulators); i++ {
+		merged = stats.MergeWelford(merged, accumulators[i])
+	}
+
+	variance := 0.0
+	if merged.Count > 1 {
+		variance = merged.M2 / (merged.Count - 1)
+	}
+
+	empiricalStats := stats.EmpiricalStats{
+		Count:    int64(merged.Count),
+		Avg:      merged.Avg,
+		Variance: variance,
+	}
+
+	return buffer, empiricalStats, nil
+}
+
 func RunSimulationCmd(distribution string, params []float64, sampleSize int) tea.Cmd {
 	return func() tea.Msg {
-		if sampleSize <= 0 {
-			sampleSize = 1000
+		buffer, empiricalStats, err := runSimulationOnce(distribution, params, sampleSize)
+		if err != nil {
+			return errorMessage{error: err, index: -1}
 		}
-
-		if errM := ValidateParams(distribution, params); errM.error != nil {
-			return errM
-		}
-
-		buffer := make([]float64, sampleSize)
-		numGoroutines := concurrentWorkers
-		if sampleSize < numGoroutines {
-			numGoroutines = sampleSize
-		}
-		chunkSize := sampleSize / numGoroutines
-
-		var wg sync.WaitGroup
-		accumulators := make([]stats.WelfordAccumulator, numGoroutines)
-
-		// Pre-build CDF tables once to share across workers
-		var binomialCDF []float64
-		var poissonCDF []float64
-		var hypergeoCDF []float64
-		var hypergeoErr error
-
-		switch distribution {
-		case "Binomial":
-			n := int(params[1])
-			p := params[0]
-			variance := float64(n) * p * (1.0 - p)
-			if variance <= 9.0 {
-				binomialCDF = sim.BuildBinomialCDFTable(n, p)
-			}
-		case "Poisson":
-			lambda := params[0]
-			if lambda > 10.0 && lambda <= 100.0 {
-				poissonCDF = sim.BuildPoissonCDFTable(lambda)
-			}
-		case "Hypergeométrica":
-			N := params[0]
-			M := params[1]
-			n := params[2]
-			variance := n * (M / N) * ((N - M) / N) * ((N - n) / (N - 1))
-			if variance <= 9.0 {
-				hypergeoCDF, _, _, hypergeoErr = sim.BuildHypergeometricCDFTable(M, n, N)
-			}
-		}
-		if hypergeoErr != nil {
-			return errorMessage{error: hypergeoErr, index: -1}
-		}
-
-		for g := 0; g < numGoroutines; g++ {
-			wg.Add(1)
-			start := g * chunkSize
-			end := start + chunkSize
-			if g == numGoroutines-1 {
-				end = sampleSize
-			}
-
-			go func(id int, subBuffer []float64) {
-				defer wg.Done()
-
-				engine := sim.NewSimulatorEngine(uint64(id+1), 42)
-				var fillErr error
-
-				switch distribution {
-				case "Binomial":
-					n := int(params[1])
-					p := params[0]
-					fillErr = engine.FillBinomial(subBuffer, n, p, binomialCDF)
-				case "Poisson":
-					fillErr = engine.FillPoisson(subBuffer, params[0], poissonCDF)
-				case "Hypergeométrica":
-					// params: N poblacional, M éxitos, n muestra
-					fillErr = engine.FillHypergeometric(subBuffer, params[1], params[2], params[0], hypergeoCDF)
-				case "Normal":
-					fillErr = engine.FillNormal(subBuffer, params[0], params[1])
-				case "Exponencial":
-					fillErr = engine.FillExponential(subBuffer, params[0])
-				case "Exponencial (β)":
-					// β = 1/λ, así que λ = 1/β
-					fillErr = engine.FillExponential(subBuffer, 1.0/params[0])
-				case "Bernoulli":
-					fillErr = engine.FillBernoulli(subBuffer, params[0])
-				case "Geométrica":
-					fillErr = engine.FillGeometric(subBuffer, params[0])
-				case "Uniforme continua":
-					fillErr = engine.FillUniformContinuous(subBuffer, params[0], params[1])
-				}
-
-				if fillErr != nil {
-					// Si falla el llenado, dejamos ceros en ese chunk
-					return
-				}
-
-				for _, val := range subBuffer {
-					accumulators[id].Update(val)
-				}
-			}(g, buffer[start:end])
-		}
-
-		wg.Wait()
-
-		// Merge de acumuladores Welford
-		merged := accumulators[0]
-		for i := 1; i < len(accumulators); i++ {
-			merged = stats.MergeWelford(merged, accumulators[i])
-		}
-
-		variance := 0.0
-		if merged.Count > 1 {
-			variance = merged.M2 / (merged.Count - 1)
-		}
-
-		empiricalStats := stats.EmpiricalStats{
-			Count:    int64(merged.Count),
-			Avg:      merged.Avg,
-			Variance: variance,
-		}
-
 		return MsgSimulationSuccess{
 			Stats: empiricalStats,
 			Data:  buffer,
