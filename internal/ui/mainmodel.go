@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/Starbhein/DistCalc/internal/core/stats"
+	"github.com/Starbhein/DistCalc/internal/export"
 )
 
 type sessionState int
@@ -53,17 +54,34 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "e":
 			if m.state == stateResults {
-				m.exportMsg = "Exportar PNG — aún no implementado"
+				filename := export.GenerateFilename(m.activeDistribution, "png")
+				markValue := m.distParams[len(m.distParams)-1]
+				if err := export.ExportPlot(m.chartBuffer, m.activeDistribution, m.distParams, markValue, filename, "png"); err != nil {
+					m.exportMsg = fmt.Sprintf("Error PNG: %v", err)
+				} else {
+					m.exportMsg = fmt.Sprintf("✓ PNG guardado: %s", filename)
+				}
 				return m, nil
 			}
 		case "s":
 			if m.state == stateResults {
-				m.exportMsg = "Exportar SVG — aún no implementado"
+				filename := export.GenerateFilename(m.activeDistribution, "svg")
+				markValue := m.distParams[len(m.distParams)-1]
+				if err := export.ExportPlot(m.chartBuffer, m.activeDistribution, m.distParams, markValue, filename, "svg"); err != nil {
+					m.exportMsg = fmt.Sprintf("Error SVG: %v", err)
+				} else {
+					m.exportMsg = fmt.Sprintf("✓ SVG guardado: %s", filename)
+				}
 				return m, nil
 			}
 		case "c":
 			if m.state == stateResults {
-				m.exportMsg = "Exportar CSV — aún no implementado"
+				filename := export.GenerateFilename(m.activeDistribution, "csv")
+				if err := export.ExportCSV(m.chartBuffer, filename); err != nil {
+					m.exportMsg = fmt.Sprintf("Error CSV: %v", err)
+				} else {
+					m.exportMsg = fmt.Sprintf("✓ CSV guardado: %s", filename)
+				}
 				return m, nil
 			}
 		}
