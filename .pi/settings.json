@@ -1,0 +1,63 @@
+{
+	"subagents": {
+		"agentOverrides": {
+			"sdd-init": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-explore": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-proposal": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-spec": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-design": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-tasks": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-apply": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-verify": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-sync": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-archive": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"context-builder": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"delegate": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"oracle": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"planner": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"researcher": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"reviewer": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"scout": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"sdd-onboard": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			},
+			"worker": {
+				"model": "kimi-coding/kimi-k2-thinking"
+			}
+		}
+	}
+}

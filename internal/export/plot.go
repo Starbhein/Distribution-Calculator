@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Starbhein/DistCalc/internal/core/distributions"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
 	"gonum.org/v1/plot/vg/draw"
-	"github.com/Starbhein/DistCalc/internal/core/distributions"
 )
 
 // ExportPlot generates a PNG or SVG with histogram + theoretical curve + vertical line at x.

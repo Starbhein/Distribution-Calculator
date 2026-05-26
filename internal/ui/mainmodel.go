@@ -172,12 +172,18 @@ func (m MainModel) View() tea.View {
 		Width(leftWidth).
 		Height(m.height-2).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#2A1F4A")).Padding(1, 2)
+		BorderForeground(borderDefault).
+		Background(bgSecondary).
+		Foreground(textPrimary).
+		Padding(1, 2)
 	rightBoxStyle := lipgloss.NewStyle().
 		Width(rightWidth).
 		Height(m.height-2).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#2A1F4A")).Padding(1, 2).
+		BorderForeground(borderDefault).
+		Background(bgSecondary).
+		Foreground(textPrimary).
+		Padding(1, 2).
 		Align(lipgloss.Center, lipgloss.Center)
 	leftContent := leftBoxStyle.Render(m.form.View().Content)
 	var rightContent string
@@ -185,10 +191,10 @@ func (m MainModel) View() tea.View {
 	case stateMenu:
 		return m.menu.View()
 	case stateForm:
-		initText := titleh1Style.Render("Selecciona los parámetros a la izquierda\n y presiona ENTER para simular")
+		initText := titleh1Style.Render("Seleccioná los parámetros a la izquierda") + "\n" + secondaryTextStyle().Render("y presioná ENTER para simular")
 		rightContent = rightBoxStyle.Render(initText)
 	case stateLoading:
-		spinnerView := m.spinner.View() + "Calculando simulación"
+		spinnerView := m.spinner.View() + " " + secondaryTextStyle().Render("Calculando simulación...")
 		rightContent = rightBoxStyle.Render(spinnerView)
 	case stateResults:
 		theo, _ := ComputeTheoreticalStats(m.activeDistribution, m.distParams)
@@ -238,11 +244,14 @@ func (m MainModel) View() tea.View {
 			Width(rightWidth).
 			Height(m.height-2).
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("#2A1F4A")).Padding(1, 2).
+			BorderForeground(borderDefault).
+			Background(bgSecondary).
+			Foreground(textPrimary).
+			Padding(1, 2).
 			Align(lipgloss.Left, lipgloss.Top)
 		rightContent = resultsStyle.Render(resultsView)
 	default:
-		rightContent = rightBoxStyle.Render("Estado desconocido")
+		rightContent = rightBoxStyle.Render(errorTextStyle().Render("Estado desconocido"))
 	}
 	v := tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top, leftContent, rightContent))
 	return v
@@ -256,7 +265,7 @@ func NewMainModel() MainModel {
 	model.state = stateMenu
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#7C3AED"))
+	s.Style = spinnerStyle
 	model.spinner = s
 	return model
 }

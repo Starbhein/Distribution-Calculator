@@ -5,19 +5,6 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
-)
-
-var (
-	buttonActiveStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#50FA7B"))
-	buttonDisabledStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#8BE9FD"))
-	errorLabelStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5555"))
-	focusedStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF79C6"))
-	blurredStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("#BD93F9"))
-	mutedStyle          = lipgloss.NewStyle().Foreground(lipgloss.Color("#5C4E7A"))
-
-	warningStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFB86C"))
-	titleh1Style = lipgloss.NewStyle().Foreground(lipgloss.Color("#C678DD"))
 )
 
 type FormModel struct {

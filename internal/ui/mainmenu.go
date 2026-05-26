@@ -15,17 +15,19 @@ type styles struct {
 }
 
 func newStyles(darkBG bool) styles {
-	lightDark := lipgloss.LightDark(darkBG)
-
 	return styles{
 		app: lipgloss.NewStyle().
-			Padding(1, 2).Align(lipgloss.Center, lipgloss.Center),
+			Padding(1, 2).
+			Align(lipgloss.Center, lipgloss.Center).
+			Background(bgPrimary).
+			Foreground(textPrimary),
 		title: lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#C678DD")).
-			Background(lipgloss.Color("#FF2079")).
-			Padding(0, 1).Align(lipgloss.Center, lipgloss.Center),
+			Foreground(colTitleH1).
+			Background(bgElevated).
+			Padding(0, 1).
+			Align(lipgloss.Center, lipgloss.Center),
 		statusMessage: lipgloss.NewStyle().
-			Foreground(lightDark(lipgloss.Color("#04005E"), lipgloss.Color("#C678DD"))),
+			Foreground(textSecondary),
 	}
 }
 
