@@ -26,6 +26,7 @@ type FormModel struct {
 	activeDistribution string
 	styles             styles
 	errorMap           map[int]string
+	generalError       string
 }
 type MsgForm struct {
 	Parameters []string
@@ -83,12 +84,17 @@ func (form FormModel) Update(msg tea.Msg) (FormModel, tea.Cmd) {
 
 		default:
 			delete(form.errorMap, form.focusIndex)
+			form.generalError = ""
 		}
 	case errorMessage:
-		if form.errorMap == nil {
-			form.errorMap = make(map[int]string)
+		if msg.index >= 0 {
+			if form.errorMap == nil {
+				form.errorMap = make(map[int]string)
+			}
+			form.errorMap[msg.index] = msg.error.Error()
+		} else {
+			form.generalError = msg.error.Error()
 		}
-		form.errorMap[msg.index] = msg.error.Error()
 	}
 	var cmd tea.Cmd
 	form.inputs[form.focusIndex], cmd = form.inputs[form.focusIndex].Update(msg)
@@ -115,6 +121,12 @@ func (form FormModel) View() tea.View {
 		btn = buttonDisabledStyle.Render(boton)
 	}
 	model.WriteString(btn)
+	model.WriteString("\n")
+	if form.generalError != "" {
+		model.WriteString(errorLabelStyle.Render("Error: " + form.generalError))
+		model.WriteString("\n")
+	}
+	model.WriteString(mutedStyle.Render("[ESC] volver al menú"))
 	return tea.NewView(model.String())
 }
 
@@ -151,28 +163,31 @@ func (form *FormModel) BuildInputs(distribution string) {
 	case "Poisson":
 		form.inputs = append(form.inputs, createInput("Lambda (λ)"))
 		form.inputs = append(form.inputs, createInput("X (x)"))
-	case "Hipergeometrica":
-
+	case "Hypergeométrica":
 		form.inputs = append(form.inputs, createInput("Tamaño poblacional (N)"))
 		form.inputs = append(form.inputs, createInput("Número de exitos (M)"))
 		form.inputs = append(form.inputs, createInput("Tamaño de muestra (n)"))
 		form.inputs = append(form.inputs, createInput("X (x)"))
 	case "Normal":
-
 		form.inputs = append(form.inputs, createInput("Media (μ)"))
 		form.inputs = append(form.inputs, createInput("Desviación estándar (σ)"))
 		form.inputs = append(form.inputs, createInput("X (x)"))
-	case "Exponencial Lambda":
-
+	case "Exponencial":
 		form.inputs = append(form.inputs, createInput("Lambda (λ)"))
 		form.inputs = append(form.inputs, createInput("X (x)"))
-	case "Exponencial Betha":
-		form.inputs = append(form.inputs, createInput("Betha (β)"))
+	case "Exponencial (β)":
+		form.inputs = append(form.inputs, createInput("Beta (β)"))
+		form.inputs = append(form.inputs, createInput("X (x)"))
+	case "Bernoulli":
+		form.inputs = append(form.inputs, createInput("Probabilidad (p)"))
+		form.inputs = append(form.inputs, createInput("X (x)"))
+	case "Geométrica":
+		form.inputs = append(form.inputs, createInput("Probabilidad (p)"))
 		form.inputs = append(form.inputs, createInput("X (x)"))
 	case "Uniforme continua":
-
 		form.inputs = append(form.inputs, createInput("Límite inferior (a)"))
 		form.inputs = append(form.inputs, createInput("Límite superior (b)"))
+		form.inputs = append(form.inputs, createInput("X (x)"))
 	}
 	inputDefault := createInput("Tamaño de la muestra a simular")
 	inputDefault.SetValue("1000")

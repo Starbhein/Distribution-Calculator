@@ -1,7 +1,8 @@
 package ui
 
 import (
-	"time"
+	"fmt"
+	"math"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
@@ -19,23 +20,52 @@ const (
 )
 
 type MainModel struct {
-	styles         styles
-	darkBG         bool
-	state          sessionState
-	menu           MenuModel
-	form           FormModel
-	width, height  int
-	spinner        spinner.Model
-	empiricalStats stats.EmpiricalStats
-	chartBuffer    []float64
+	styles             styles
+	darkBG             bool
+	state              sessionState
+	menu               MenuModel
+	form               FormModel
+	width, height      int
+	spinner            spinner.Model
+	empiricalStats     stats.EmpiricalStats
+	chartBuffer        []float64
+	activeDistribution string
+	distParams         []float64
+	chartView          string
+	exportMsg          string
 }
 
 func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrc+c", "q":
+		case "ctrl+c":
 			return m, tea.Quit
+		case "esc":
+			switch m.state {
+			case stateForm, stateResults:
+				m.state = stateMenu
+				m.chartBuffer = nil
+				m.distParams = nil
+				m.chartView = ""
+				m.exportMsg = ""
+				return m, nil
+			}
+		case "e":
+			if m.state == stateResults {
+				m.exportMsg = "Exportar PNG — aún no implementado"
+				return m, nil
+			}
+		case "s":
+			if m.state == stateResults {
+				m.exportMsg = "Exportar SVG — aún no implementado"
+				return m, nil
+			}
+		case "c":
+			if m.state == stateResults {
+				m.exportMsg = "Exportar CSV — aún no implementado"
+				return m, nil
+			}
 		}
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
@@ -46,18 +76,49 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.form.BuildInputs(msg.Distribution)
 		return m, nil
 	case MsgForm:
-		_, errM := Parser(msg.Parameters)
+		parsed, errM := Parser(msg.Parameters)
 		if errM.error != nil {
 			return m, func() tea.Msg {
 				return errM
 			}
 		}
-		m.state = stateLoading
-		return m, func() tea.Msg {
-			time.Sleep(2 * time.Second)
-			return MsgSimulationSuccess{}
+		if len(parsed) == 0 {
+			return m, nil
 		}
+		sampleSize := int(parsed[len(parsed)-1])
+		m.distParams = parsed[:len(parsed)-1]
+		m.activeDistribution = m.form.activeDistribution
+		m.state = stateLoading
+		return m, RunSimulationCmd(m.activeDistribution, m.distParams, sampleSize)
 	case MsgSimulationSuccess:
+		m.state = stateResults
+		m.empiricalStats = msg.Stats
+		m.chartBuffer = msg.Data
+		m.exportMsg = ""
+		// Pre-render chart
+		if len(m.distParams) > 0 {
+			markValue := m.distParams[len(m.distParams)-1]
+			chartW := (m.width * 55) / 100
+			chartH := (m.height * 35) / 100
+			if chartW < 20 {
+				chartW = 20
+			}
+			if chartH < 8 {
+				chartH = 8
+			}
+			// Histograma ASCII para ambos tipos
+			rightWidth := (m.width*70)/100 - 4
+			contentWidth := rightWidth - 8
+			if contentWidth < 20 {
+				contentWidth = 20
+			}
+			if isDiscreteDistribution(m.activeDistribution) {
+				m.chartView = RenderDiscreteHistogram(m.chartBuffer, m.activeDistribution, m.distParams, markValue, contentWidth)
+			} else {
+				m.chartView = RenderContinuousHistogram(m.chartBuffer, m.activeDistribution, m.distParams, markValue, contentWidth)
+			}
+		}
+		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -112,7 +173,56 @@ func (m MainModel) View() tea.View {
 		spinnerView := m.spinner.View() + "Calculando simulación"
 		rightContent = rightBoxStyle.Render(spinnerView)
 	case stateResults:
-		rightContent = rightBoxStyle.Render("Los resultados son los siguientes")
+		theo, _ := ComputeTheoreticalStats(m.activeDistribution, m.distParams)
+		probs, _ := ComputeProbabilities(m.activeDistribution, m.distParams)
+		comparison := fmt.Sprintf(
+			"%s\n\n"+
+				"%-18s %10s %10s %10s\n"+
+				"%-18s %10.4f %10.4f %10.4f\n"+
+				"%-18s %10.4f %10.4f %10.4f\n"+
+				"%-18s %10.4f %10.4f %10.4f\n"+
+				"%-18s %10s %10d %10s\n",
+			titleh1Style.Render("Comparación Simulado vs Teórico"),
+			"Concepto", "Teórico", "Simulado", "Diferencia",
+			"Media", theo.Avg, m.empiricalStats.Avg, theo.Avg-m.empiricalStats.Avg,
+			"Varianza", theo.Variance, m.empiricalStats.Variance, theo.Variance-m.empiricalStats.Variance,
+			"Desv. Estándar", theo.StdDev, math.Sqrt(m.empiricalStats.Variance), theo.StdDev-math.Sqrt(m.empiricalStats.Variance),
+			"Tamaño muestra", "—", m.empiricalStats.Count, "—",
+		)
+
+		// Para continuas: f(x) es densidad, no probabilidad
+		pxLabel := "P(X = x)"
+		if !isDiscreteDistribution(m.activeDistribution) {
+			pxLabel = "f(x)    "
+		}
+		probSection := fmt.Sprintf(
+			"\n%s\n"+
+				"%s  = %.6f\n"+
+				"P(X ≤ x)  = %.6f\n"+
+				"P(X > x)  = %.6f\n",
+			titleh1Style.Render("Probabilidades para tu x"),
+			pxLabel, probs.PX, probs.PLe, probs.PGt,
+		)
+
+		chartSection := ""
+		if m.chartView != "" {
+			chartSection = "\n" + titleh1Style.Render("Gráfica") + "\n" + m.chartView
+		}
+
+		exportSection := ""
+		if m.exportMsg != "" {
+			exportSection = "\n" + warningStyle.Render(m.exportMsg)
+		}
+
+		resultsView := comparison + probSection + chartSection + exportSection + "\n" + mutedStyle.Render("[ESC] volver  [e] PNG  [s] SVG  [c] CSV")
+
+		resultsStyle := lipgloss.NewStyle().
+			Width(rightWidth).
+			Height(m.height-2).
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("#2A1F4A")).Padding(1, 2).
+			Align(lipgloss.Left, lipgloss.Top)
+		rightContent = resultsStyle.Render(resultsView)
 	default:
 		rightContent = rightBoxStyle.Render("Estado desconocido")
 	}

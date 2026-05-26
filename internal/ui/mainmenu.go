@@ -6,7 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-const distributionQuantity = 5
+const distributionQuantity = 9
 
 type styles struct {
 	app           lipgloss.Style
@@ -85,9 +85,9 @@ func NewMenuModel() MenuModel {
 }
 
 func initDistributionOptions() []list.Item {
-	options := []string{"Binomial", "Poisson", "Hypergeométrica", "Normal", "Exponencial"}
+	options := []string{"Binomial", "Poisson", "Hypergeométrica", "Normal", "Exponencial", "Exponencial (β)", "Bernoulli", "Geométrica", "Uniforme continua"}
 	descriptions := []string{
-		"B~(x,n,p) where n*p <=5 ", "P~(x,λ) and P~(x,β)", "H~(x,m,k,N)", "N~(x),Z normalization", "e~(λ)",
+		"B~(x,n,p) where n*p <=5 ", "P~(x,λ) and P~(x,β)", "H~(x,m,k,N)", "N~(x),Z normalization", "e~(λ)", "e~(β) where β=1/λ", "Ber~(p)", "G~(p)", "U~(a,b)",
 	}
 	res := make([]list.Item, distributionQuantity)
 	for i := range res {

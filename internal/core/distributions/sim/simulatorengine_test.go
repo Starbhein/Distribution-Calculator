@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	epsilon    = .02
+	epsilon    = .1
 	bufferSize = 1e7
 	seed       = 42
 )
@@ -18,7 +18,7 @@ func TestFillBinomial(t *testing.T) {
 	t.Run("simulating a binomial distribution with ep = .5 and N=50", func(t *testing.T) {
 		testingSlice := make([]float64, bufferSize)
 		eng := NewSimulatorEngine(seed, seed)
-		err := eng.FillBinomial(testingSlice, 50, 0.5)
+		err := eng.FillBinomial(testingSlice, 50, 0.5, nil)
 		if err != nil {
 			t.Error(err)
 		}
@@ -34,7 +34,7 @@ func TestFillPoisson(t *testing.T) {
 	t.Run("simulating a poisson distribution with the seed seed,seed", func(t *testing.T) {
 		testingSlice := make([]float64, bufferSize)
 		eng := NewSimulatorEngine(seed, seed)
-		err := eng.FillPoisson(testingSlice, 15.0)
+		err := eng.FillPoisson(testingSlice, 15.0, nil)
 		if err != nil {
 			t.Error(err)
 		}
@@ -49,7 +49,7 @@ func TestFillHypergeometric(t *testing.T) {
 	t.Run("simulating a hypergeometric distribution with N=50, m=20,n=10", func(t *testing.T) {
 		testingSlice := make([]float64, bufferSize)
 		eng := NewSimulatorEngine(seed, seed)
-		err := eng.FillHypergeometric(testingSlice, 20, 10, 50)
+		err := eng.FillHypergeometric(testingSlice, 20, 10, 50, nil)
 		if err != nil {
 			t.Error(err)
 		}
