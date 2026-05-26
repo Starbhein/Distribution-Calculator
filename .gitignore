@@ -1,2 +1,13 @@
 # Local Pi runtime state
 .atl/
+.pi/
+.pi-lens/
+
+# Generated export files
+distcalc-*.png
+distcalc-*.svg
+distcalc-*.csv
+
+# Documentation files (not part of source)
+arquitectura_decisiones.md
+resumen_proyecto_parcial2.md
