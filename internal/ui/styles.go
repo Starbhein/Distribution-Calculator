@@ -67,11 +67,11 @@ var (
 	mutedStyle          = lipgloss.NewStyle().Foreground(textMuted)
 
 	// Títulos y mensajes
-	titleh1Style   = lipgloss.NewStyle().Foreground(colTitleH1).Bold(true)
-	titleh2Style   = lipgloss.NewStyle().Foreground(colTitleH2).Bold(true)
-	warningStyle   = lipgloss.NewStyle().Foreground(colWarn)
-	infoStyle      = lipgloss.NewStyle().Foreground(colInfo)
-	successStyle   = lipgloss.NewStyle().Foreground(colSuccess)
+	titleh1Style = lipgloss.NewStyle().Foreground(colTitleH1).Bold(true)
+	titleh2Style = lipgloss.NewStyle().Foreground(colTitleH2).Bold(true)
+	warningStyle = lipgloss.NewStyle().Foreground(colWarn)
+	infoStyle    = lipgloss.NewStyle().Foreground(colInfo)
+	successStyle = lipgloss.NewStyle().Foreground(colSuccess)
 
 	// Histograma
 	theoreticalStyle = lipgloss.NewStyle().Foreground(colTheoretical)

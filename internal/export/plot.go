@@ -22,9 +22,10 @@ func ExportPlot(data []float64, dist string, params []float64, markX float64, ou
 	}
 
 	p := plot.New()
-	p.Title.Text = fmt.Sprintf("Distribución %s", dist)
+	p.Title.Text = buildTitle(dist, params, data)
 	p.X.Label.Text = "Valor"
 	p.Y.Label.Text = "Densidad"
+	p.Legend.Top = true
 
 	if isDiscreteDistribution(dist) {
 		return exportDiscretePlot(p, data, dist, params, markX, outPath, format)
@@ -46,15 +47,18 @@ func exportContinuousPlot(p *plot.Plot, data []float64, dist string, params []fl
 	hist.FillColor = color.RGBA{R: 175, G: 238, B: 238, A: 255}
 	hist.LineStyle.Color = color.RGBA{R: 80, G: 200, B: 200, A: 255}
 	p.Add(hist)
+	p.Legend.Add("Histograma empírico", hist)
 
 	// Curva PDF teórica
 	distParams := params[:len(params)-1]
 	pdfFunc := buildPDFFunc(dist, distParams)
+	var fn *plotter.Function
 	if pdfFunc != nil {
-		fn := plotter.NewFunction(pdfFunc)
+		fn = plotter.NewFunction(pdfFunc)
 		fn.Color = color.RGBA{R: 189, G: 147, B: 249, A: 255} // #BD93F9
 		fn.Width = vg.Points(2)
 		p.Add(fn)
+		p.Legend.Add("PDF teórica", fn)
 	}
 
 	// Línea vertical en x = markX
@@ -69,6 +73,7 @@ func exportContinuousPlot(p *plot.Plot, data []float64, dist string, params []fl
 			line.Dashes = []vg.Length{vg.Points(4), vg.Points(2)}
 			line.Width = vg.Points(1.5)
 			p.Add(line)
+			p.Legend.Add(fmt.Sprintf("x = %.2f", markX), line)
 		}
 	}
 
@@ -110,36 +115,42 @@ func exportDiscretePlot(p *plot.Plot, data []float64, dist string, params []floa
 	}
 
 	// Empirical line (green, with circles)
+	var empLine *plotter.Line
+	var empScatter *plotter.Scatter
 	if len(empBars) > 0 {
-		empLine, err := plotter.NewLine(empBars)
-		if err == nil {
+		empLine, _ = plotter.NewLine(empBars)
+		if empLine != nil {
 			empLine.Color = color.RGBA{R: 80, G: 250, B: 123, A: 255}
 			empLine.Width = vg.Points(1.5)
 			p.Add(empLine)
 		}
-		empScatter, err := plotter.NewScatter(empBars)
-		if err == nil {
+		empScatter, _ = plotter.NewScatter(empBars)
+		if empScatter != nil {
 			empScatter.GlyphStyle.Color = color.RGBA{R: 80, G: 250, B: 123, A: 255}
 			empScatter.GlyphStyle.Radius = vg.Points(3)
 			p.Add(empScatter)
 		}
+		p.Legend.Add("Frecuencia empírica", empLine)
 	}
 
 	// Theoretical line (purple, with diamonds)
+	var theoLine *plotter.Line
+	var theoScatter *plotter.Scatter
 	if len(theoBars) > 0 {
-		theoLine, err := plotter.NewLine(theoBars)
-		if err == nil {
+		theoLine, _ = plotter.NewLine(theoBars)
+		if theoLine != nil {
 			theoLine.Color = color.RGBA{R: 189, G: 147, B: 249, A: 255}
 			theoLine.Width = vg.Points(2)
 			p.Add(theoLine)
 		}
-		theoScatter, err := plotter.NewScatter(theoBars)
-		if err == nil {
+		theoScatter, _ = plotter.NewScatter(theoBars)
+		if theoScatter != nil {
 			theoScatter.GlyphStyle.Color = color.RGBA{R: 189, G: 147, B: 249, A: 255}
 			theoScatter.GlyphStyle.Radius = vg.Points(3)
 			theoScatter.GlyphStyle.Shape = draw.RingGlyph{}
 			p.Add(theoScatter)
 		}
+		p.Legend.Add("PMF teórica", theoLine)
 	}
 
 	// Mark bar at k=markedK with red line
@@ -154,10 +165,86 @@ func exportDiscretePlot(p *plot.Plot, data []float64, dist string, params []floa
 			line.Dashes = []vg.Length{vg.Points(4), vg.Points(2)}
 			line.Width = vg.Points(1.5)
 			p.Add(line)
+			p.Legend.Add(fmt.Sprintf("x = %d", markedK), line)
 		}
 	}
 
 	return p.Save(6*vg.Inch, 4*vg.Inch, outPath)
+}
+
+// buildTitle creates a descriptive title with distribution name, parameters, n, mean and stddev.
+func buildTitle(dist string, params []float64, data []float64) string {
+	n := len(data)
+	mean, stddev := computeEmpiricalStats(data)
+	paramStr := formatParams(dist, params)
+	return fmt.Sprintf("%s\nn=%d, μ̂=%.4f, σ̂=%.4f, %s", dist, n, mean, stddev, paramStr)
+}
+
+// computeEmpiricalStats calculates mean and standard deviation from data.
+func computeEmpiricalStats(data []float64) (mean, stddev float64) {
+	if len(data) == 0 {
+		return 0, 0
+	}
+	var sum float64
+	for _, v := range data {
+		sum += v
+	}
+	mean = sum / float64(len(data))
+
+	var variance float64
+	for _, v := range data {
+		diff := v - mean
+		variance += diff * diff
+	}
+	variance /= float64(len(data) - 1)
+	if len(data) == 1 {
+		variance = 0
+	}
+	stddev = math.Sqrt(variance)
+	return
+}
+
+// formatParams returns a human-readable string of distribution parameters.
+func formatParams(dist string, params []float64) string {
+	switch dist {
+	case "Binomial":
+		if len(params) >= 2 {
+			return fmt.Sprintf("p=%.4f, n=%.0f", params[0], params[1])
+		}
+	case "Poisson":
+		if len(params) >= 1 {
+			return fmt.Sprintf("λ=%.4f", params[0])
+		}
+	case "Hypergeométrica":
+		if len(params) >= 3 {
+			return fmt.Sprintf("N=%.0f, M=%.0f, n=%.0f", params[0], params[1], params[2])
+		}
+	case "Normal":
+		if len(params) >= 2 {
+			return fmt.Sprintf("μ=%.4f, σ=%.4f", params[0], params[1])
+		}
+	case "Exponencial":
+		if len(params) >= 1 {
+			return fmt.Sprintf("λ=%.4f", params[0])
+		}
+	case "Exponencial (β)":
+		if len(params) >= 1 {
+			return fmt.Sprintf("β=%.4f", params[0])
+		}
+	case "Bernoulli":
+		if len(params) >= 1 {
+			return fmt.Sprintf("p=%.4f", params[0])
+		}
+	case "Geométrica":
+		if len(params) >= 1 {
+			return fmt.Sprintf("p=%.4f", params[0])
+		}
+	case "Uniforme continua":
+		if len(params) >= 2 {
+			return fmt.Sprintf("a=%.4f, b=%.4f", params[0], params[1])
+		}
+	}
+	return ""
 }
 
 func buildPDFFunc(dist string, params []float64) func(float64) float64 {
