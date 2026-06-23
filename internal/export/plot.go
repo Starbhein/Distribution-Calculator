@@ -223,7 +223,7 @@ func formatParams(dist string, params []float64) string {
 		if len(params) >= 2 {
 			return fmt.Sprintf("μ=%.4f, σ=%.4f", params[0], params[1])
 		}
-	case "Exponencial":
+	case "Exponencial (λ)":
 		if len(params) >= 1 {
 			return fmt.Sprintf("λ=%.4f", params[0])
 		}
@@ -259,7 +259,7 @@ func buildPDFFunc(dist string, params []float64) func(float64) float64 {
 				}
 			}
 		}
-	case "Exponencial":
+	case "Exponencial (λ)":
 		if len(params) >= 1 {
 			el, _ := distributions.NewExponentialLambda(params[0])
 			if el != nil {

@@ -110,7 +110,7 @@ func RunCLTCmd(distribution string, params []float64) tea.Cmd {
 					fillErr = engine.FillHypergeometric(buffer, params[1], params[2], params[0], hypergeoCDF)
 				case "Normal":
 					fillErr = engine.FillNormal(buffer, params[0], params[1])
-				case "Exponencial":
+				case "Exponencial (λ)":
 					fillErr = engine.FillExponential(buffer, params[0])
 				case "Exponencial (β)":
 					fillErr = engine.FillExponential(buffer, 1.0/params[0])
@@ -312,7 +312,7 @@ func formatCLTParams(dist string, params []float64) string {
 		if len(params) >= 2 {
 			return fmt.Sprintf("μ=%.4f, σ=%.4f", params[0], params[1])
 		}
-	case "Exponencial":
+	case "Exponencial (λ)":
 		if len(params) >= 1 {
 			return fmt.Sprintf("λ=%.4f", params[0])
 		}

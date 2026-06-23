@@ -84,7 +84,7 @@ func ValidateParams(distribution string, params []float64) errorMessage {
 		if params[1] <= 0 {
 			return errorMessage{error: errors.New("σ debe ser mayor que 0"), index: 1}
 		}
-	case "Exponencial":
+	case "Exponencial (λ)":
 		if len(params) < 1 {
 			return errorMessage{error: errors.New("faltan parámetros para Exponencial"), index: -1}
 		}
@@ -199,7 +199,7 @@ func runSimulationOnce(distribution string, params []float64, sampleSize int) ([
 				fillErr = engine.FillHypergeometric(subBuffer, params[1], params[2], params[0], hypergeoCDF)
 			case "Normal":
 				fillErr = engine.FillNormal(subBuffer, params[0], params[1])
-			case "Exponencial":
+			case "Exponencial (λ)":
 				fillErr = engine.FillExponential(subBuffer, params[0])
 			case "Exponencial (β)":
 				fillErr = engine.FillExponential(subBuffer, 1.0/params[0])

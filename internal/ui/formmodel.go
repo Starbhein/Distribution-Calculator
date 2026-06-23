@@ -168,7 +168,7 @@ func (form *FormModel) BuildInputs(distribution string) {
 		if !form.isCLTMode {
 			form.inputs = append(form.inputs, createInput("X (x)"))
 		}
-	case "Exponencial":
+	case "Exponencial (λ)":
 		form.inputs = append(form.inputs, createInput("Lambda (λ)"))
 		if !form.isCLTMode {
 			form.inputs = append(form.inputs, createInput("X (x)"))
