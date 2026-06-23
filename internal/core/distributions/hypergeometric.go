@@ -64,7 +64,7 @@ func (h Hypergeometric) CDF(k int) (float64, error) {
 	maxValue := min(k, int(float64(h.NSample)*float64(h.M)/float64(h.N)))
 	sum := 1.0
 	cumulative := 1.0
-	for i := maxValue - 1; i >= 0 && cumulative >= sum*epsilonSignificantValue; i++ {
+	for i := maxValue - 1; i >= 0 && cumulative >= sum*epsilonSignificantValue; i-- {
 		cumulative *= (float64(i+1) / float64(h.M-(i+1)+1)) * (float64(h.N-h.M-h.NSample+(i+1)) / float64(h.NSample-(i+1)+1))
 		sum += cumulative
 	}

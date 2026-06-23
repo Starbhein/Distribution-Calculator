@@ -87,7 +87,7 @@ func NewMenuModel() MenuModel {
 }
 
 func initDistributionOptions() []list.Item {
-	options := []string{"Binomial", "Poisson", "Hypergeométrica", "Normal", "Exponencial(λ)", "Exponencial (β)", "Bernoulli", "Geométrica", "Uniforme continua", "Teorema del Límite Central"}
+	options := []string{"Binomial", "Poisson", "Hypergeométrica", "Normal", "Exponencial (λ)", "Exponencial (β)", "Bernoulli", "Geométrica", "Uniforme continua", "Teorema del Límite Central"}
 	descriptions := []string{
 		"B~(x,n,p) si n*p <=5 ", "P~(x,λ)", "H~(x,m,k,N)", "N~(x),Z normalizada", "e~(λ)", "e~(β) cuando β=1/λ", "Ber~(p)", "G~(p)", "U~(a,b)", "TLC — medias muestrales → Normal",
 	}

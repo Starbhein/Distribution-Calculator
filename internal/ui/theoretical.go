@@ -69,7 +69,7 @@ func ComputeTheoreticalStats(distribution string, params []float64) (Theoretical
 			StdDev:   sigma,
 		}, nil
 
-	case "Exponencial":
+	case "Exponencial (λ)":
 		if len(params) < 1 {
 			return TheoreticalStats{}, errors.New("faltan parámetros para Exponencial")
 		}
@@ -240,7 +240,7 @@ func ComputeProbabilities(distribution string, params []float64) (Probabilities,
 		}
 		return Probabilities{PX: pdf, PLe: cdf, PGt: 1 - cdf}, nil
 
-	case "Exponencial":
+	case "Exponencial (λ)":
 		if len(params) < 2 {
 			return Probabilities{}, errors.New("faltan parámetros para Exponencial")
 		}

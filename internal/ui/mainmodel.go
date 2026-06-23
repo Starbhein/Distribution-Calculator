@@ -156,7 +156,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return errorMessage{error: errors.New("el tamaño de muestra debe ser mayor que 0"), index: len(m.form.inputs) - 1}
 			}
 		}
-		if sampleSize > 10_000_000 {
+		if sampleSize > 100_000_000 {
 			return m, func() tea.Msg {
 				return errorMessage{error: errors.New("el tamaño de muestra no puede superar 10.000.000"), index: len(m.form.inputs) - 1}
 			}

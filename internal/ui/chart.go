@@ -330,7 +330,7 @@ func getTheoreticalPDFChart(dist string, params []float64, x float64) float64 {
 				return v
 			}
 		}
-	case "Exponencial":
+	case "Exponencial (λ)":
 		if len(params) >= 1 {
 			el, _ := distributions.NewExponentialLambda(params[0])
 			if el != nil {
