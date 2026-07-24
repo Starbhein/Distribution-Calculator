@@ -43,30 +43,30 @@ func (el ExponentialLambda) CDF(x float64) (float64, error) {
 	return 1 - math.Exp(-el.Lambda*x), nil
 }
 
-type ExponentialBetha struct {
+type ExponentialBeta struct {
 	Beta float64
 }
 
-func NewExponentialBetha(betha float64) (*ExponentialBetha, error) {
-	if betha < 0 {
-		return nil, errors.New("betha must be greater than 0")
+func NewExponentialBeta(beta float64) (*ExponentialBeta, error) {
+	if beta < 0 {
+		return nil, errors.New("beta must be greater than 0")
 	}
-	return &ExponentialBetha{Beta: betha}, nil
+	return &ExponentialBeta{Beta: beta}, nil
 }
 
-func (eb ExponentialBetha) Avg() float64 {
+func (eb ExponentialBeta) Avg() float64 {
 	return eb.Beta
 }
 
-func (eb ExponentialBetha) Variance() float64 {
+func (eb ExponentialBeta) Variance() float64 {
 	return eb.Beta * eb.Beta
 }
 
-func (eb ExponentialBetha) StdDev() float64 {
+func (eb ExponentialBeta) StdDev() float64 {
 	return eb.Beta
 }
 
-func (eb ExponentialBetha) PDF(x float64) (float64, error) {
+func (eb ExponentialBeta) PDF(x float64) (float64, error) {
 	if x < 0 {
 		return 0.0, errors.New("x must be a positive number ")
 	}
@@ -76,7 +76,7 @@ func (eb ExponentialBetha) PDF(x float64) (float64, error) {
 	return (float64(1) / eb.Beta) * math.Exp(-(float64(1)/eb.Beta)*x), nil
 }
 
-func (eb ExponentialBetha) CDF(x float64) (float64, error) {
+func (eb ExponentialBeta) CDF(x float64) (float64, error) {
 	if x < 0 {
 		return 0.0, errors.New("x must be a positive number ")
 	}
