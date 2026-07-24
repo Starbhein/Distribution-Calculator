@@ -264,7 +264,7 @@ func ComputeProbabilities(distribution string, params []float64) (Probabilities,
 			return Probabilities{}, errors.New("faltan parámetros para Exponencial (β)")
 		}
 		beta := params[0]
-		eb, err := distributions.NewExponentialBetha(beta)
+		eb, err := distributions.NewExponentialBeta(beta)
 		if err != nil {
 			return Probabilities{}, err
 		}

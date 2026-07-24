@@ -7,7 +7,7 @@ import (
 
 type Normal struct {
 	Average            float64
-	StdandardDeviation float64
+	StandardDeviation float64
 }
 
 func NewNormal(Average, StandardDeviation float64) (*Normal, error) {
@@ -15,7 +15,7 @@ func NewNormal(Average, StandardDeviation float64) (*Normal, error) {
 		return nil, errors.New("the standard deviation parameter must be a positive number")
 	}
 
-	return &Normal{Average: Average, StdandardDeviation: StandardDeviation}, nil
+	return &Normal{Average: Average, StandardDeviation: StandardDeviation}, nil
 }
 
 func (n Normal) Avg() float64 {
@@ -23,22 +23,22 @@ func (n Normal) Avg() float64 {
 }
 
 func (n Normal) StdDev() float64 {
-	return n.StdandardDeviation
+	return n.StandardDeviation
 }
 
 func (n Normal) Variance() float64 {
-	return n.StdandardDeviation * n.StdandardDeviation
+	return n.StandardDeviation * n.StandardDeviation
 }
 
 func (n Normal) PDF(x float64) (float64, error) {
-	z := (x - n.Average) / n.StdandardDeviation
+	z := (x - n.Average) / n.StandardDeviation
 	exponent := -.5 * z * z
-	coefficient := 1 / (n.StdandardDeviation * math.Sqrt(2*math.Pi))
+	coefficient := 1 / (n.StandardDeviation * math.Sqrt(2*math.Pi))
 
 	return coefficient * math.Exp(exponent), nil
 }
 
 func (n Normal) CDF(x float64) (float64, error) {
-	z := (x - n.Average) / (n.StdandardDeviation * math.Sqrt(2))
+	z := (x - n.Average) / (n.StandardDeviation * math.Sqrt(2))
 	return 0.5 * math.Erfc(-z), nil
 }

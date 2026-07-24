@@ -340,7 +340,7 @@ func getTheoreticalPDFChart(dist string, params []float64, x float64) float64 {
 		}
 	case "Exponencial (β)":
 		if len(params) >= 1 {
-			eb, _ := distributions.NewExponentialBetha(params[0])
+			eb, _ := distributions.NewExponentialBeta(params[0])
 			if eb != nil {
 				v, _ := eb.PDF(x)
 				return v
