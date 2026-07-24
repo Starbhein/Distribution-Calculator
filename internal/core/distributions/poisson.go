@@ -3,9 +3,9 @@ package distributions
 import (
 	"errors"
 	"math"
-)
 
-const epsilonSignificantValue = 1e-15
+	"github.com/Starbhein/DistCalc/internal/core/distmath"
+)
 
 type Poisson struct {
 	Lambda float64
@@ -42,24 +42,14 @@ func (p Poisson) PMF(k int) (float64, error) {
 	return math.Exp(num - den), nil
 }
 
+// CDF delegates to the distmath pointwise kernel (design §2.1): THE
+// recurrence core keeps this struct's algorithm verbatim, with the
+// truncation epsilon single-sourced at distmath.EpsilonSignificantValue
+// (design §2.3 — the old 1e-15 constant here is deleted, hidden coupling
+// removed). The k guard is preserved exactly (no behavior change).
 func (p Poisson) CDF(k int) (float64, error) {
 	if k < 0 {
 		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0")
 	}
-	maxValue := min(k, int(p.Lambda))
-	cumulativeR := 1.0
-	sum := 1.0
-	cumulativeL := 1.0
-	for i := maxValue - 1; i >= 0 && cumulativeL >= sum*epsilonSignificantValue; i-- {
-		cumulativeL *= float64(i+1) / p.Lambda
-		sum += cumulativeL
-	}
-	for i := maxValue + 1; i <= k && cumulativeR >= sum*epsilonSignificantValue; i++ {
-		cumulativeR *= p.Lambda / float64(i)
-		sum += cumulativeR
-	}
-
-	num := float64(maxValue)*math.Log(p.Lambda) - p.Lambda
-	den, _ := math.Lgamma(float64(maxValue + 1))
-	return math.Exp((num - den)) * sum, nil
+	return distmath.PoissonCDF(p.Lambda, k), nil
 }
