@@ -271,29 +271,23 @@ func (engine *SimulatorEngine) FillBernoulli(buffer []float64, p float64) error 
 	return nil
 }
 
-// FillGeometric uses a hybrid method for precision:
-// - Inverse transform (log method) for p >= 0.01: O(1) per sample
-// - Iterative method for p < 0.01: avoids catastrophic precision loss in log(1-p)
+// FillGeometric uses the exact inverse-CDF of the trials-until-success
+// geometric distribution for ALL p (design §3.2): k = ceil(log(u)/log1p(-p)).
+// math.Log1p preserves full precision at small p, so the old O(1/p)
+// iterative small-p branch is deleted — one PRNG draw per sample.
 func (engine *SimulatorEngine) FillGeometric(buffer []float64, p float64) error {
-	if p >= 0.01 {
-		log1p := math.Log(1.0 - p)
-		for i := range buffer {
-			u := engine.prng.Float64()
-			k := math.Ceil(math.Log(u) / log1p)
-			if k < 1 {
-				k = 1
-			}
-			buffer[i] = k
-		}
-		return nil
-	}
-	// Iterative method for very small p to avoid log precision loss
+	log1mp := math.Log1p(-p)
 	for i := range buffer {
-		trials := 1.0
-		for engine.prng.Float64() >= p {
-			trials++
+		u := engine.prng.Float64()
+		if u == 0 {
+			// P ≈ 2^-53 guard: log(0) = -Inf would yield +Inf.
+			u = math.SmallestNonzeroFloat64
 		}
-		buffer[i] = trials
+		k := math.Ceil(math.Log(u) / log1mp)
+		if k < 1 {
+			k = 1
+		}
+		buffer[i] = k
 	}
 	return nil
 }

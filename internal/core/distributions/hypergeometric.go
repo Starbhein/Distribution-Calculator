@@ -3,6 +3,8 @@ package distributions
 import (
 	"errors"
 	"math"
+
+	"github.com/Starbhein/DistCalc/internal/core/distmath"
 )
 
 type Hypergeometric struct {
@@ -36,21 +38,14 @@ func (h Hypergeometric) StdDev() float64 {
 	return math.Sqrt(h.Variance())
 }
 
+// PMF delegates to the distmath mode-anchored recurrence (design §3.1):
+// one log-space seed plus a short ratio walk instead of 9 Lgamma calls
+// per point. The k guard is preserved exactly (no behavior change).
 func (h Hypergeometric) PMF(k int) (float64, error) {
 	if k < 0 || k > h.N {
 		return 0.0, errors.New("the k constant couldn't be negative, it has to be greater or equals than 0 and lower than N ")
 	}
-	mFactorial, _ := math.Lgamma(float64(h.M + 1))
-	kFactorial, _ := math.Lgamma(float64(k + 1))
-	mminkFactorial, _ := math.Lgamma(float64(h.M - k + 1))
-	nminmFactorial, _ := math.Lgamma(float64(h.N - h.M + 1))
-	nminkFactorial, _ := math.Lgamma(float64(h.NSample - k + 1))
-	nminmnk, _ := math.Lgamma(float64(h.N - h.M - h.NSample + k + 1))
-	nsampleFactorial, _ := math.Lgamma(float64(h.NSample + 1))
-	nminsampleFactorial, _ := math.Lgamma(float64(h.N - h.NSample + 1))
-	nFactorial, _ := math.Lgamma(float64(h.N + 1))
-	res := mFactorial - kFactorial - mminkFactorial + nminmFactorial - nminkFactorial - nminmnk + nsampleFactorial + nminsampleFactorial - nFactorial
-	return math.Exp(res), nil
+	return distmath.HypergeometricPMF(h.M, h.NSample, h.N, k), nil
 }
 
 func (h Hypergeometric) CDF(k int) (float64, error) {
