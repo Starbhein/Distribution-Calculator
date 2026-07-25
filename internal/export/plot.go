@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Starbhein/DistCalc/internal/core/distributions"
+	"github.com/Starbhein/DistCalc/internal/core/stats"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
 	"gonum.org/v1/plot/vg"
@@ -175,33 +176,19 @@ func exportDiscretePlot(p *plot.Plot, data []float64, dist string, params []floa
 // buildTitle creates a descriptive title with distribution name, parameters, n, mean and stddev.
 func buildTitle(dist string, params []float64, data []float64) string {
 	n := len(data)
-	mean, stddev := computeEmpiricalStats(data)
+	mean, stddev := empiricalStats(data)
 	paramStr := formatParams(dist, params)
 	return fmt.Sprintf("%s\nn=%d, μ̂=%.4f, σ̂=%.4f, %s", dist, n, mean, stddev, paramStr)
 }
 
-// computeEmpiricalStats calculates mean and standard deviation from data.
-func computeEmpiricalStats(data []float64) (mean, stddev float64) {
-	if len(data) == 0 {
-		return 0, 0
-	}
-	var sum float64
-	for _, v := range data {
-		sum += v
-	}
-	mean = sum / float64(len(data))
-
-	var variance float64
-	for _, v := range data {
-		diff := v - mean
-		variance += diff * diff
-	}
-	variance /= float64(len(data) - 1)
-	if len(data) == 1 {
-		variance = 0
-	}
-	stddev = math.Sqrt(variance)
-	return
+// empiricalStats returns the empirical mean and standard deviation of data,
+// delegating to stats.AnalyzeBuffer (Welford) per design §2.5 — the naive
+// two-pass formula (and its len==1 divide-by-zero at the old plot.go:203-205)
+// is deleted; a single-element buffer is well-defined (variance 0 per
+// AnalyzeBuffer semantics).
+func empiricalStats(data []float64) (mean, stddev float64) {
+	result := stats.AnalyzeBuffer(data)
+	return result.Avg, math.Sqrt(result.Variance)
 }
 
 // formatParams returns a human-readable string of distribution parameters.
