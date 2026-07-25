@@ -118,8 +118,12 @@ func RenderCLT(means []float64, dist string, params []float64, theoMean, theoSE 
 
 	var sb strings.Builder
 
-	// Header
-	paramStr := formatCLTParams(dist, params)
+	// Header — param formatting is single-sourced in the registry spec
+	// (design §1.3 — FormatParams replaces the triplicated formatters).
+	paramStr := ""
+	if spec, ok := registry.ByName(dist); ok {
+		paramStr = spec.FormatParams(params)
+	}
 	sb.WriteString(titleh1Style.Render(fmt.Sprintf("Teorema del Límite Central — %s", dist)) + "\n")
 	sb.WriteString(secondaryTextStyle().Render(paramStr) + "\n")
 	sb.WriteString(fmt.Sprintf("Muestras=%d  Tamaño=%d\n", cltNumSamples, cltSampleSize))
@@ -252,46 +256,4 @@ func normalPDF(x, mean, sd float64) float64 {
 	}
 	z := (x - mean) / sd
 	return math.Exp(-0.5*z*z) / (sd * math.Sqrt(2*math.Pi))
-}
-
-func formatCLTParams(dist string, params []float64) string {
-	switch dist {
-	case "Binomial":
-		if len(params) >= 2 {
-			return fmt.Sprintf("p=%.4f, n=%.0f", params[0], params[1])
-		}
-	case "Poisson":
-		if len(params) >= 1 {
-			return fmt.Sprintf("λ=%.4f", params[0])
-		}
-	case "Hypergeométrica":
-		if len(params) >= 3 {
-			return fmt.Sprintf("N=%.0f, M=%.0f, n=%.0f", params[0], params[1], params[2])
-		}
-	case "Normal":
-		if len(params) >= 2 {
-			return fmt.Sprintf("μ=%.4f, σ=%.4f", params[0], params[1])
-		}
-	case "Exponencial (λ)":
-		if len(params) >= 1 {
-			return fmt.Sprintf("λ=%.4f", params[0])
-		}
-	case "Exponencial (β)":
-		if len(params) >= 1 {
-			return fmt.Sprintf("β=%.4f", params[0])
-		}
-	case "Bernoulli":
-		if len(params) >= 1 {
-			return fmt.Sprintf("p=%.4f", params[0])
-		}
-	case "Geométrica":
-		if len(params) >= 1 {
-			return fmt.Sprintf("p=%.4f", params[0])
-		}
-	case "Uniforme continua":
-		if len(params) >= 2 {
-			return fmt.Sprintf("a=%.4f, b=%.4f", params[0], params[1])
-		}
-	}
-	return ""
 }

@@ -5,6 +5,7 @@ import (
 
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"github.com/Starbhein/DistCalc/internal/core/distributions/registry"
 )
 
 type FormModel struct {
@@ -143,54 +144,12 @@ func (form *FormModel) BuildInputs(distribution string) {
 		ti.SetStyles(s)
 		return ti
 	}
-	switch distribution {
-	case "Binomial":
-		form.inputs = append(form.inputs, createInput("Probabilidad (p)"))
-		form.inputs = append(form.inputs, createInput("Ensayos (N)"))
-		if !form.isCLTMode {
-			form.inputs = append(form.inputs, createInput("X (x)"))
+	// Form labels come from the registry spec (design §1.3 — ParamLabels
+	// replaces this switch); the trailing "X (x)" input is simulation-only.
+	if spec, ok := registry.ByName(distribution); ok {
+		for _, label := range spec.ParamLabels {
+			form.inputs = append(form.inputs, createInput(label))
 		}
-	case "Poisson":
-		form.inputs = append(form.inputs, createInput("Lambda (λ)"))
-		if !form.isCLTMode {
-			form.inputs = append(form.inputs, createInput("X (x)"))
-		}
-	case "Hypergeométrica":
-		form.inputs = append(form.inputs, createInput("Tamaño poblacional (N)"))
-		form.inputs = append(form.inputs, createInput("Número de exitos (M)"))
-		form.inputs = append(form.inputs, createInput("Tamaño de muestra (n)"))
-		if !form.isCLTMode {
-			form.inputs = append(form.inputs, createInput("X (x)"))
-		}
-	case "Normal":
-		form.inputs = append(form.inputs, createInput("Media (μ)"))
-		form.inputs = append(form.inputs, createInput("Desviación estándar (σ)"))
-		if !form.isCLTMode {
-			form.inputs = append(form.inputs, createInput("X (x)"))
-		}
-	case "Exponencial (λ)":
-		form.inputs = append(form.inputs, createInput("Lambda (λ)"))
-		if !form.isCLTMode {
-			form.inputs = append(form.inputs, createInput("X (x)"))
-		}
-	case "Exponencial (β)":
-		form.inputs = append(form.inputs, createInput("Beta (β)"))
-		if !form.isCLTMode {
-			form.inputs = append(form.inputs, createInput("X (x)"))
-		}
-	case "Bernoulli":
-		form.inputs = append(form.inputs, createInput("Probabilidad (p)"))
-		if !form.isCLTMode {
-			form.inputs = append(form.inputs, createInput("X (x)"))
-		}
-	case "Geométrica":
-		form.inputs = append(form.inputs, createInput("Probabilidad (p)"))
-		if !form.isCLTMode {
-			form.inputs = append(form.inputs, createInput("X (x)"))
-		}
-	case "Uniforme continua":
-		form.inputs = append(form.inputs, createInput("Límite inferior (a)"))
-		form.inputs = append(form.inputs, createInput("Límite superior (b)"))
 		if !form.isCLTMode {
 			form.inputs = append(form.inputs, createInput("X (x)"))
 		}

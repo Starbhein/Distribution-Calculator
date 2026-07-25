@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/Starbhein/DistCalc/internal/core/distributions/registry"
 )
 
 // LLNStep represents one step in the LLN simulation.
@@ -63,8 +64,12 @@ func RunLLNCmd(distribution string, params []float64, steps, startN, growthFacto
 func RenderLLN(steps []LLNStep, theoreticalMean float64, dist string, params []float64, width int) string {
 	var sb strings.Builder
 
-	// Header
-	paramStr := formatLLNParams(dist, params)
+	// Header — param formatting is single-sourced in the registry spec
+	// (design §1.3 — FormatParams replaces the triplicated formatters).
+	paramStr := ""
+	if spec, ok := registry.ByName(dist); ok {
+		paramStr = spec.FormatParams(params)
+	}
 	sb.WriteString(titleh1Style.Render(fmt.Sprintf("Ley de Grandes Números — %s", dist)) + "\n")
 	sb.WriteString(secondaryTextStyle().Render(paramStr) + "\n")
 	sb.WriteString(fmt.Sprintf("μ teórica = %.4f\n\n", theoreticalMean))
@@ -105,46 +110,4 @@ func RenderLLN(steps []LLNStep, theoreticalMean float64, dist string, params []f
 	sb.WriteString("\n" + mutedStyle.Render("Δ = |μ̂ - μ| → 0 cuando n → ∞"))
 
 	return sb.String()
-}
-
-func formatLLNParams(dist string, params []float64) string {
-	switch dist {
-	case "Binomial":
-		if len(params) >= 2 {
-			return fmt.Sprintf("p=%.4f, n=%.0f", params[0], params[1])
-		}
-	case "Poisson":
-		if len(params) >= 1 {
-			return fmt.Sprintf("λ=%.4f", params[0])
-		}
-	case "Hypergeométrica":
-		if len(params) >= 3 {
-			return fmt.Sprintf("N=%.0f, M=%.0f, n=%.0f", params[0], params[1], params[2])
-		}
-	case "Normal":
-		if len(params) >= 2 {
-			return fmt.Sprintf("μ=%.4f, σ=%.4f", params[0], params[1])
-		}
-	case "Exponencial (λ)":
-		if len(params) >= 1 {
-			return fmt.Sprintf("λ=%.4f", params[0])
-		}
-	case "Exponencial (β)":
-		if len(params) >= 1 {
-			return fmt.Sprintf("β=%.4f", params[0])
-		}
-	case "Bernoulli":
-		if len(params) >= 1 {
-			return fmt.Sprintf("p=%.4f", params[0])
-		}
-	case "Geométrica":
-		if len(params) >= 1 {
-			return fmt.Sprintf("p=%.4f", params[0])
-		}
-	case "Uniforme continua":
-		if len(params) >= 2 {
-			return fmt.Sprintf("a=%.4f, b=%.4f", params[0], params[1])
-		}
-	}
-	return ""
 }
