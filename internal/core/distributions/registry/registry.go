@@ -17,6 +17,11 @@ const (
 	IDExponentialLambda ID = "exponential_lambda"
 	IDExponentialBeta   ID = "exponential_beta"
 	IDUniform           ID = "uniform"
+	IDBernoulli         ID = "bernoulli"
+	IDBinomial          ID = "binomial"
+	IDGeometric         ID = "geometric"
+	IDPoisson           ID = "poisson"
+	IDHypergeometric    ID = "hypergeometric"
 )
 
 // Spec is the single source of per-distribution knowledge (design §1.3).
@@ -50,12 +55,18 @@ type Sampler interface {
 	Fill(engine *sim.SimulatorEngine, buffer []float64) error      // per worker; zero per-sample allocs
 }
 
-// specs is the registry table. Discrete entries land in PR4a-2.
+// specs is the registry table: 4 continuous entries (PR4a-1) + 5 discrete
+// entries (PR4a-2) — exactly the 9 current menu entries (design §9).
 var specs = []Spec{
 	normalSpec,
 	exponentialLambdaSpec,
 	exponentialBetaSpec,
 	uniformSpec,
+	bernoulliSpec,
+	binomialSpec,
+	geometricSpec,
+	poissonSpec,
+	hypergeometricSpec,
 }
 
 // specsByName is built once from specs; ByName is the ONLY name-based
