@@ -139,7 +139,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// CLT mode: all parsed values are distribution params (no sample size input)
 		if m.isCLTMode {
 			params := parsed
-			if errV := ValidateParams(m.form.activeDistribution, params); errV.error != nil {
+			if errV := validateParams(m.form.activeDistribution, params); errV.error != nil {
 				return m, func() tea.Msg {
 					return errV
 				}
@@ -163,7 +163,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		params := parsed[:len(parsed)-1]
 
-		if errV := ValidateParams(m.form.activeDistribution, params); errV.error != nil {
+		if errV := validateParams(m.form.activeDistribution, params); errV.error != nil {
 			return m, func() tea.Msg {
 				return errV
 			}

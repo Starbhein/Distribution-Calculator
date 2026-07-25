@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/Starbhein/DistCalc/internal/core/distributions/registry"
 	"github.com/Starbhein/DistCalc/internal/core/distributions/sim"
 	"github.com/Starbhein/DistCalc/internal/core/stats"
 )
@@ -34,102 +35,42 @@ func Parser(parameters []string) ([]float64, errorMessage) {
 	return res, errorMessage{}
 }
 
-func ValidateParams(distribution string, params []float64) errorMessage {
-	switch distribution {
-	case "Binomial":
-		if len(params) < 2 {
-			return errorMessage{error: errors.New("faltan parámetros para Binomial"), index: -1}
-		}
-		p := params[0]
-		n := params[1]
-		if p <= 0 || p > 1 {
-			return errorMessage{error: errors.New("p debe estar en (0, 1]"), index: 0}
-		}
-		if n <= 0 {
-			return errorMessage{error: errors.New("n debe ser mayor que 0"), index: 1}
-		}
-	case "Poisson":
-		if len(params) < 1 {
-			return errorMessage{error: errors.New("faltan parámetros para Poisson"), index: -1}
-		}
-		if params[0] <= 0 {
-			return errorMessage{error: errors.New("λ debe ser mayor que 0"), index: 0}
-		}
-	case "Hypergeométrica":
-		if len(params) < 3 {
-			return errorMessage{error: errors.New("faltan parámetros para Hypergeométrica"), index: -1}
-		}
-		N := params[0]
-		M := params[1]
-		n := params[2]
-		if N <= 0 {
-			return errorMessage{error: errors.New("N debe ser mayor que 0"), index: 0}
-		}
-		if M <= 0 {
-			return errorMessage{error: errors.New("M debe ser mayor que 0"), index: 1}
-		}
-		if n <= 0 {
-			return errorMessage{error: errors.New("n debe ser mayor que 0"), index: 2}
-		}
-		if M > N {
-			return errorMessage{error: errors.New("M no puede ser mayor que N"), index: 1}
-		}
-		if n > N {
-			return errorMessage{error: errors.New("n no puede ser mayor que N"), index: 2}
-		}
-	case "Normal":
-		if len(params) < 2 {
-			return errorMessage{error: errors.New("faltan parámetros para Normal"), index: -1}
-		}
-		if params[1] <= 0 {
-			return errorMessage{error: errors.New("σ debe ser mayor que 0"), index: 1}
-		}
-	case "Exponencial (λ)":
-		if len(params) < 1 {
-			return errorMessage{error: errors.New("faltan parámetros para Exponencial"), index: -1}
-		}
-		if params[0] <= 0 {
-			return errorMessage{error: errors.New("λ debe ser mayor que 0"), index: 0}
-		}
-	case "Exponencial (β)":
-		if len(params) < 1 {
-			return errorMessage{error: errors.New("faltan parámetros para Exponencial (β)"), index: -1}
-		}
-		if params[0] <= 0 {
-			return errorMessage{error: errors.New("β debe ser mayor que 0"), index: 0}
-		}
-	case "Bernoulli":
-		if len(params) < 1 {
-			return errorMessage{error: errors.New("faltan parámetros para Bernoulli"), index: -1}
-		}
-		if params[0] <= 0 || params[0] > 1 {
-			return errorMessage{error: errors.New("p debe estar en (0, 1]"), index: 0}
-		}
-	case "Geométrica":
-		if len(params) < 1 {
-			return errorMessage{error: errors.New("faltan parámetros para Geométrica"), index: -1}
-		}
-		if params[0] <= 0 || params[0] > 1 {
-			return errorMessage{error: errors.New("p debe estar en (0, 1]"), index: 0}
-		}
-	case "Uniforme continua":
-		if len(params) < 2 {
-			return errorMessage{error: errors.New("faltan parámetros para Uniforme continua"), index: -1}
-		}
-		if params[0] >= params[1] {
-			return errorMessage{error: errors.New("a debe ser menor que b"), index: 0}
-		}
-	default:
+// validateParams runs THE single validation layer — the registry
+// Spec.Validate (design §7, spec §3) — and maps the result to the
+// (index, error) form-highlight shape. ByName is the only name-based
+// dispatch left; the per-distribution rules live in the specs.
+func validateParams(distribution string, params []float64) errorMessage {
+	spec, ok := registry.ByName(distribution)
+	if !ok {
 		return errorMessage{error: errors.New("distribución desconocida: " + distribution), index: -1}
+	}
+	if idx, err := spec.Validate(params); err != nil {
+		return errorMessage{error: err, index: idx}
 	}
 	return errorMessage{}
 }
 
 // runSimulationOnce ejecuta una simulación sincrónica y retorna datos + stats.
 // Reutilizable por RunSimulationCmd y RunLLNCmd.
+// Fill dispatch goes through the registry sampler (design §1.3): ByName +
+// NewSampler + one Prebuild per run + Fill per worker.
 func runSimulationOnce(distribution string, params []float64, sampleSize int) ([]float64, stats.EmpiricalStats, error) {
 	if sampleSize <= 0 {
 		sampleSize = 1000
+	}
+
+	spec, ok := registry.ByName(distribution)
+	if !ok {
+		return nil, stats.EmpiricalStats{}, errors.New("distribución desconocida: " + distribution)
+	}
+	sampler, err := spec.NewSampler(params)
+	if err != nil {
+		return nil, stats.EmpiricalStats{}, err
+	}
+	// Pre-build shared CDF tables once, shared across workers (no-op for
+	// table-less specs).
+	if err := sampler.Prebuild(); err != nil {
+		return nil, stats.EmpiricalStats{}, err
 	}
 
 	buffer := make([]float64, sampleSize)
@@ -141,38 +82,6 @@ func runSimulationOnce(distribution string, params []float64, sampleSize int) ([
 
 	var wg sync.WaitGroup
 	accumulators := make([]stats.WelfordAccumulator, numGoroutines)
-
-	// Pre-build CDF tables once to share across workers
-	var binomialCDF []float64
-	var poissonCDF []float64
-	var hypergeoCDF []float64
-	var hypergeoErr error
-
-	switch distribution {
-	case "Binomial":
-		n := int(params[1])
-		p := params[0]
-		variance := float64(n) * p * (1.0 - p)
-		if variance <= 9.0 {
-			binomialCDF = sim.BuildBinomialCDFTable(n, p)
-		}
-	case "Poisson":
-		lambda := params[0]
-		if lambda > 10.0 && lambda <= 100.0 {
-			poissonCDF = sim.BuildPoissonCDFTable(lambda)
-		}
-	case "Hypergeométrica":
-		N := params[0]
-		M := params[1]
-		n := params[2]
-		variance := n * (M / N) * ((N - M) / N) * ((N - n) / (N - 1))
-		if variance <= 9.0 {
-			hypergeoCDF, _, _, hypergeoErr = sim.BuildHypergeometricCDFTable(M, n, N)
-		}
-	}
-	if hypergeoErr != nil {
-		return nil, stats.EmpiricalStats{}, hypergeoErr
-	}
 
 	for g := 0; g < numGoroutines; g++ {
 		wg.Add(1)
@@ -186,32 +95,7 @@ func runSimulationOnce(distribution string, params []float64, sampleSize int) ([
 			defer wg.Done()
 
 			engine := sim.NewSimulatorEngine(uint64(id+1), 42)
-			var fillErr error
-
-			switch distribution {
-			case "Binomial":
-				n := int(params[1])
-				p := params[0]
-				fillErr = engine.FillBinomial(subBuffer, n, p, binomialCDF)
-			case "Poisson":
-				fillErr = engine.FillPoisson(subBuffer, params[0], poissonCDF)
-			case "Hypergeométrica":
-				fillErr = engine.FillHypergeometric(subBuffer, params[1], params[2], params[0], hypergeoCDF)
-			case "Normal":
-				fillErr = engine.FillNormal(subBuffer, params[0], params[1])
-			case "Exponencial (λ)":
-				fillErr = engine.FillExponential(subBuffer, params[0])
-			case "Exponencial (β)":
-				fillErr = engine.FillExponential(subBuffer, 1.0/params[0])
-			case "Bernoulli":
-				fillErr = engine.FillBernoulli(subBuffer, params[0])
-			case "Geométrica":
-				fillErr = engine.FillGeometric(subBuffer, params[0])
-			case "Uniforme continua":
-				fillErr = engine.FillUniformContinuous(subBuffer, params[0], params[1])
-			}
-
-			if fillErr != nil {
+			if err := sampler.Fill(engine, subBuffer); err != nil {
 				return
 			}
 
