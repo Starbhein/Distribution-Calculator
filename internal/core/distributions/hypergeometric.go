@@ -23,6 +23,15 @@ func NewHypergeometric(successQuantity, populationQuantity, sampleQuantity int) 
 	if sampleQuantity <= 0 {
 		return nil, errors.New("the sample quantity must be greater than 0")
 	}
+	// Cross-parameter backstops (design §7, spec §3): defense for direct
+	// library consumers. The registry Validate layer owns the app-level
+	// rule; these keep the two layers from ever disagreeing.
+	if successQuantity > populationQuantity {
+		return nil, errors.New("the population success quantity must not exceed the population quantity")
+	}
+	if sampleQuantity > populationQuantity {
+		return nil, errors.New("the sample quantity must not exceed the population quantity")
+	}
 	return &Hypergeometric{M: successQuantity, N: populationQuantity, NSample: sampleQuantity}, nil
 }
 

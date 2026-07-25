@@ -1,12 +1,14 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/Starbhein/DistCalc/internal/core/distributions/registry"
 	"github.com/Starbhein/DistCalc/internal/core/distributions/sim"
 	"github.com/Starbhein/DistCalc/internal/core/stats"
 )
@@ -41,43 +43,25 @@ func RunCLTCmd(distribution string, params []float64) tea.Cmd {
 			return errorMessage{error: err, index: -1}
 		}
 
+		// Fill dispatch goes through the registry sampler (design §1.3):
+		// ByName + NewSampler + one Prebuild per run + Fill per worker.
+		spec, ok := registry.ByName(distribution)
+		if !ok {
+			return errorMessage{error: errors.New("distribución desconocida: " + distribution), index: -1}
+		}
+		sampler, err := spec.NewSampler(params)
+		if err != nil {
+			return errorMessage{error: err, index: -1}
+		}
+		if err := sampler.Prebuild(); err != nil {
+			return errorMessage{error: err, index: -1}
+		}
+
 		means := make([]float64, cltNumSamples)
 
 		numGoroutines := concurrentWorkers
 		if cltNumSamples < numGoroutines {
 			numGoroutines = cltNumSamples
-		}
-
-		// Pre-build CDF tables once
-		var binomialCDF []float64
-		var poissonCDF []float64
-		var hypergeoCDF []float64
-		var hypergeoErr error
-
-		switch distribution {
-		case "Binomial":
-			n := int(params[1])
-			p := params[0]
-			variance := float64(n) * p * (1.0 - p)
-			if variance <= 9.0 {
-				binomialCDF = sim.BuildBinomialCDFTable(n, p)
-			}
-		case "Poisson":
-			lambda := params[0]
-			if lambda > 10.0 && lambda <= 100.0 {
-				poissonCDF = sim.BuildPoissonCDFTable(lambda)
-			}
-		case "Hypergeométrica":
-			N := params[0]
-			M := params[1]
-			n := params[2]
-			variance := n * (M / N) * ((N - M) / N) * ((N - n) / (N - 1))
-			if variance <= 9.0 {
-				hypergeoCDF, _, _, hypergeoErr = sim.BuildHypergeometricCDFTable(M, n, N)
-			}
-		}
-		if hypergeoErr != nil {
-			return errorMessage{error: hypergeoErr, index: -1}
 		}
 
 		var wg sync.WaitGroup
@@ -98,31 +82,7 @@ func RunCLTCmd(distribution string, params []float64) tea.Cmd {
 				buffer := make([]float64, sampleCount*cltSampleSize)
 
 				// Fill the entire batch in one call for cache efficiency
-				var fillErr error
-				switch distribution {
-				case "Binomial":
-					n := int(params[1])
-					p := params[0]
-					fillErr = engine.FillBinomial(buffer, n, p, binomialCDF)
-				case "Poisson":
-					fillErr = engine.FillPoisson(buffer, params[0], poissonCDF)
-				case "Hypergeométrica":
-					fillErr = engine.FillHypergeometric(buffer, params[1], params[2], params[0], hypergeoCDF)
-				case "Normal":
-					fillErr = engine.FillNormal(buffer, params[0], params[1])
-				case "Exponencial (λ)":
-					fillErr = engine.FillExponential(buffer, params[0])
-				case "Exponencial (β)":
-					fillErr = engine.FillExponential(buffer, 1.0/params[0])
-				case "Bernoulli":
-					fillErr = engine.FillBernoulli(buffer, params[0])
-				case "Geométrica":
-					fillErr = engine.FillGeometric(buffer, params[0])
-				case "Uniforme continua":
-					fillErr = engine.FillUniformContinuous(buffer, params[0], params[1])
-				}
-
-				if fillErr != nil {
+				if err := sampler.Fill(engine, buffer); err != nil {
 					return
 				}
 
