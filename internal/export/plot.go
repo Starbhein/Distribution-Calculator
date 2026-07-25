@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Starbhein/DistCalc/internal/core/distributions"
+	"github.com/Starbhein/DistCalc/internal/core/distributions/registry"
 	"github.com/Starbhein/DistCalc/internal/core/stats"
 	"gonum.org/v1/plot"
 	"gonum.org/v1/plot/plotter"
@@ -28,7 +28,8 @@ func ExportPlot(data []float64, dist string, params []float64, markX float64, ou
 	p.Y.Label.Text = "Densidad"
 	p.Legend.Top = true
 
-	if isDiscreteDistribution(dist) {
+	spec, ok := registry.ByName(dist)
+	if ok && spec.Discrete {
 		return exportDiscretePlot(p, data, dist, params, markX, outPath, format)
 	}
 	return exportContinuousPlot(p, data, dist, params, markX, outPath, format)
@@ -50,9 +51,13 @@ func exportContinuousPlot(p *plot.Plot, data []float64, dist string, params []fl
 	p.Add(hist)
 	p.Legend.Add("Histograma empírico", hist)
 
-	// Curva PDF teórica
+	// Curva PDF teórica: una sola construcción por render vía registro
+	// (spec §5 — el constructor fuera del muestreo de la curva).
 	distParams := params[:len(params)-1]
-	pdfFunc := buildPDFFunc(dist, distParams)
+	var pdfFunc func(float64) float64
+	if spec, ok := registry.ByName(dist); ok {
+		pdfFunc = registry.PDFFunc(spec, distParams)
+	}
 	var fn *plotter.Function
 	if pdfFunc != nil {
 		fn = plotter.NewFunction(pdfFunc)
@@ -106,11 +111,24 @@ func exportDiscretePlot(p *plot.Plot, data []float64, dist string, params []floa
 		}
 	}
 
+	// PMF teórica: una sola construcción por render vía registro (spec §5 —
+	// el constructor fuera del loop por barra). La fila se respalda en un
+	// solo pase O(rango) de distmath para binomial/poisson/hypergeométrica.
+	var pmfFn func(int) float64
+	if dist != "" && distParams != nil {
+		if spec, ok := registry.ByName(dist); ok {
+			pmfFn = registry.PMFFunc(spec, distParams)
+		}
+	}
+
 	for k := minK; k <= maxK; k++ {
 		count := freq[k]
 		empBars = append(empBars, plotter.XY{X: float64(k), Y: float64(count) / n})
 		if dist != "" && distParams != nil {
-			pmf := getTheoreticalPMF(dist, distParams, k)
+			pmf := 0.0
+			if pmfFn != nil {
+				pmf = pmfFn(k)
+			}
 			theoBars = append(theoBars, plotter.XY{X: float64(k), Y: pmf})
 		}
 	}
@@ -177,7 +195,12 @@ func exportDiscretePlot(p *plot.Plot, data []float64, dist string, params []floa
 func buildTitle(dist string, params []float64, data []float64) string {
 	n := len(data)
 	mean, stddev := empiricalStats(data)
-	paramStr := formatParams(dist, params)
+	// Param formatting is single-sourced in the registry specs (design §1.3);
+	// unknown names format as "", exactly as the deleted switch did.
+	paramStr := ""
+	if spec, ok := registry.ByName(dist); ok {
+		paramStr = spec.FormatParams(params)
+	}
 	return fmt.Sprintf("%s\nn=%d, μ̂=%.4f, σ̂=%.4f, %s", dist, n, mean, stddev, paramStr)
 }
 
@@ -191,140 +214,9 @@ func empiricalStats(data []float64) (mean, stddev float64) {
 	return result.Avg, math.Sqrt(result.Variance)
 }
 
-// formatParams returns a human-readable string of distribution parameters.
-func formatParams(dist string, params []float64) string {
-	switch dist {
-	case "Binomial":
-		if len(params) >= 2 {
-			return fmt.Sprintf("p=%.4f, n=%.0f", params[0], params[1])
-		}
-	case "Poisson":
-		if len(params) >= 1 {
-			return fmt.Sprintf("λ=%.4f", params[0])
-		}
-	case "Hypergeométrica":
-		if len(params) >= 3 {
-			return fmt.Sprintf("N=%.0f, M=%.0f, n=%.0f", params[0], params[1], params[2])
-		}
-	case "Normal":
-		if len(params) >= 2 {
-			return fmt.Sprintf("μ=%.4f, σ=%.4f", params[0], params[1])
-		}
-	case "Exponencial (λ)":
-		if len(params) >= 1 {
-			return fmt.Sprintf("λ=%.4f", params[0])
-		}
-	case "Exponencial (β)":
-		if len(params) >= 1 {
-			return fmt.Sprintf("β=%.4f", params[0])
-		}
-	case "Bernoulli":
-		if len(params) >= 1 {
-			return fmt.Sprintf("p=%.4f", params[0])
-		}
-	case "Geométrica":
-		if len(params) >= 1 {
-			return fmt.Sprintf("p=%.4f", params[0])
-		}
-	case "Uniforme continua":
-		if len(params) >= 2 {
-			return fmt.Sprintf("a=%.4f, b=%.4f", params[0], params[1])
-		}
-	}
-	return ""
-}
-
-func buildPDFFunc(dist string, params []float64) func(float64) float64 {
-	switch dist {
-	case "Normal":
-		if len(params) >= 2 {
-			n, _ := distributions.NewNormal(params[0], params[1])
-			if n != nil {
-				return func(x float64) float64 {
-					v, _ := n.PDF(x)
-					return v
-				}
-			}
-		}
-	case "Exponencial (λ)":
-		if len(params) >= 1 {
-			el, _ := distributions.NewExponentialLambda(params[0])
-			if el != nil {
-				return func(x float64) float64 {
-					v, _ := el.PDF(x)
-					return v
-				}
-			}
-		}
-	case "Exponencial (β)":
-		if len(params) >= 1 {
-			eb, _ := distributions.NewExponentialBeta(params[0])
-			if eb != nil {
-				return func(x float64) float64 {
-					v, _ := eb.PDF(x)
-					return v
-				}
-			}
-		}
-	case "Uniforme continua":
-		if len(params) >= 2 {
-			a, b := params[0], params[1]
-			return func(x float64) float64 {
-				if x < a || x > b || a >= b {
-					return 0
-				}
-				return 1.0 / (b - a)
-			}
-		}
-	}
-	return nil
-}
-
-func getTheoreticalPMF(dist string, params []float64, k int) float64 {
-	switch dist {
-	case "Binomial":
-		if len(params) >= 2 {
-			b, _ := distributions.NewBinomial(int(params[1]), params[0])
-			if b != nil {
-				v, _ := b.PMF(k)
-				return v
-			}
-		}
-	case "Poisson":
-		if len(params) >= 1 {
-			p, _ := distributions.NewPoisson(params[0])
-			if p != nil {
-				v, _ := p.PMF(k)
-				return v
-			}
-		}
-	case "Hypergeométrica":
-		if len(params) >= 3 {
-			h, _ := distributions.NewHypergeometric(int(params[1]), int(params[0]), int(params[2]))
-			if h != nil {
-				v, _ := h.PMF(k)
-				return v
-			}
-		}
-	case "Bernoulli":
-		if len(params) >= 1 {
-			b, _ := distributions.NewBernoulli(params[0])
-			if b != nil {
-				v, _ := b.PMF(k)
-				return v
-			}
-		}
-	case "Geométrica":
-		if len(params) >= 1 {
-			g, _ := distributions.NewGeometric(params[0])
-			if g != nil {
-				v, _ := g.PMF(k)
-				return v
-			}
-		}
-	}
-	return 0
-}
+// formatParams is deleted: its 9-case name-keyed switch was the export-side
+// copy of the triplicated param formatters (lln.go:111, clt.go:298,
+// plot.go:224). Spec.FormatParams is the single source (spec §3).
 
 func computeMaxY(p *plot.Plot, data []float64, pdfFunc func(float64) float64) float64 {
 	if pdfFunc == nil {
@@ -364,14 +256,9 @@ func computeMaxYDiscrete(empBars, theoBars plotter.XYs) float64 {
 	return maxY * 1.2
 }
 
-func isDiscreteDistribution(name string) bool {
-	switch name {
-	case "Binomial", "Poisson", "Hypergeométrica", "Bernoulli", "Geométrica":
-		return true
-	default:
-		return false
-	}
-}
+// isDiscreteDistribution is deleted: discreteness is single-sourced at
+// Spec.Discrete and resolved through registry.ByName at the ExportPlot
+// entry point (design §1.3 — the chart.go:374/plot.go:380 copies are gone).
 
 // GenerateFilename creates an auto-generated filename.
 func GenerateFilename(dist string, ext string) string {

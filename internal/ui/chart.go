@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Starbhein/DistCalc/internal/core/distributions"
+	"github.com/Starbhein/DistCalc/internal/core/distributions/registry"
 )
 
 // RenderHistogram genera un histograma ASCII adaptado al ancho disponible.
@@ -104,6 +104,16 @@ func renderDiscreteWithTheory(data []float64, dist string, params []float64, mar
 		truncated = len(keys) - len(selectedKeys)
 	}
 
+	// PMF teórica: una sola construcción por render vía registro (spec §5 —
+	// el constructor fuera del loop por barra). La fila se respalda en un
+	// solo pase O(rango) de distmath para binomial/poisson/hypergeométrica.
+	var pmfFn func(int) float64
+	if dist != "" && params != nil {
+		if spec, ok := registry.ByName(dist); ok {
+			pmfFn = registry.PMFFunc(spec, params)
+		}
+	}
+
 	var sb strings.Builder
 	for _, k := range selectedKeys {
 		count := freq[k]
@@ -128,7 +138,10 @@ func renderDiscreteWithTheory(data []float64, dist string, params []float64, mar
 		// PMF teórica si tenemos distribución
 		var theoryStr string
 		if dist != "" && params != nil {
-			theo := getTheoreticalPMFChart(dist, params, k)
+			theo := 0.0
+			if pmfFn != nil {
+				theo = pmfFn(k)
+			}
 			// empirico como proporción (no porcentaje) para comparar con teórica
 			empProp := float64(count) / float64(len(data))
 			theoryStr = fmt.Sprintf(" teo:%.4f emp:%.4f", theo, empProp)
@@ -143,52 +156,6 @@ func renderDiscreteWithTheory(data []float64, dist string, params []float64, mar
 	}
 
 	return sb.String()
-}
-
-func getTheoreticalPMFChart(dist string, params []float64, k int) float64 {
-	switch dist {
-	case "Binomial":
-		if len(params) >= 2 {
-			b, _ := distributions.NewBinomial(int(params[1]), params[0])
-			if b != nil {
-				v, _ := b.PMF(k)
-				return v
-			}
-		}
-	case "Poisson":
-		if len(params) >= 1 {
-			p, _ := distributions.NewPoisson(params[0])
-			if p != nil {
-				v, _ := p.PMF(k)
-				return v
-			}
-		}
-	case "Hypergeométrica":
-		if len(params) >= 3 {
-			h, _ := distributions.NewHypergeometric(int(params[1]), int(params[0]), int(params[2]))
-			if h != nil {
-				v, _ := h.PMF(k)
-				return v
-			}
-		}
-	case "Bernoulli":
-		if len(params) >= 1 {
-			b, _ := distributions.NewBernoulli(params[0])
-			if b != nil {
-				v, _ := b.PMF(k)
-				return v
-			}
-		}
-	case "Geométrica":
-		if len(params) >= 1 {
-			g, _ := distributions.NewGeometric(params[0])
-			if g != nil {
-				v, _ := g.PMF(k)
-				return v
-			}
-		}
-	}
-	return 0
 }
 
 // RenderContinuousHistogram muestra histograma empírico con PDF teórica al lado.
@@ -246,15 +213,22 @@ func renderContinuousWithTheory(data []float64, dist string, params []float64, m
 		}
 	}
 
-	// PDF teórica evaluada en centros de bins
+	// PDF teórica evaluada en centros de bins: una sola construcción por
+	// render vía registro (spec §5 — el constructor fuera del loop por bin).
 	theoryAvailable := dist != "" && params != nil
 	pdfValues := make([]float64, binCount)
 	maxPDF := 0.0
 	if theoryAvailable {
 		distParams := params[:len(params)-1]
+		var pdfFn func(float64) float64
+		if spec, ok := registry.ByName(dist); ok {
+			pdfFn = registry.PDFFunc(spec, distParams)
+		}
 		for i := 0; i < binCount; i++ {
 			center := minV + (float64(i)+0.5)*binWidth
-			pdfValues[i] = getTheoreticalPDFChart(dist, distParams, center)
+			if pdfFn != nil {
+				pdfValues[i] = pdfFn(center)
+			}
 			if pdfValues[i] > maxPDF {
 				maxPDF = pdfValues[i]
 			}
@@ -320,43 +294,6 @@ func renderContinuousWithTheory(data []float64, dist string, params []float64, m
 	return sb.String()
 }
 
-func getTheoreticalPDFChart(dist string, params []float64, x float64) float64 {
-	switch dist {
-	case "Normal":
-		if len(params) >= 2 {
-			n, _ := distributions.NewNormal(params[0], params[1])
-			if n != nil {
-				v, _ := n.PDF(x)
-				return v
-			}
-		}
-	case "Exponencial (λ)":
-		if len(params) >= 1 {
-			el, _ := distributions.NewExponentialLambda(params[0])
-			if el != nil {
-				v, _ := el.PDF(x)
-				return v
-			}
-		}
-	case "Exponencial (β)":
-		if len(params) >= 1 {
-			eb, _ := distributions.NewExponentialBeta(params[0])
-			if eb != nil {
-				v, _ := eb.PDF(x)
-				return v
-			}
-		}
-	case "Uniforme continua":
-		if len(params) >= 2 {
-			a, b := params[0], params[1]
-			if x >= a && x <= b && a < b {
-				return 1.0 / (b - a)
-			}
-		}
-	}
-	return 0
-}
-
 func minMax(data []float64) (min, max float64) {
 	min = data[0]
 	max = data[0]
@@ -371,11 +308,10 @@ func minMax(data []float64) (min, max float64) {
 	return
 }
 
+// isDiscreteDistribution delegates discreteness to the registry: ByName is
+// the ONLY name-based dispatch left (design §1.3). Unknown names resolve to
+// continuous, exactly as the deleted name-keyed switch did.
 func isDiscreteDistribution(name string) bool {
-	switch name {
-	case "Binomial", "Poisson", "Hypergeométrica", "Bernoulli", "Geométrica":
-		return true
-	default:
-		return false
-	}
+	spec, ok := registry.ByName(name)
+	return ok && spec.Discrete
 }

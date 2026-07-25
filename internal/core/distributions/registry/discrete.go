@@ -113,6 +113,16 @@ var bernoulliSpec = Spec{
 	},
 }
 
+// bindBinomial is the single-sourced binding between the binomial UI
+// parameter order (p, n) and the engine order (n, p): Construct, NewSampler
+// and PMFFunc all consume it, so the swap can never diverge between paths.
+func bindBinomial(params []float64) (n int, p float64, err error) {
+	if idx, verr := validateBinomial(params); verr != nil {
+		return 0, 0, fmt.Errorf("param %d: %w", idx, verr)
+	}
+	return int(params[1]), params[0], nil
+}
+
 var binomialSpec = Spec{
 	ID:          IDBinomial,
 	DisplayName: "Binomial",
@@ -120,17 +130,17 @@ var binomialSpec = Spec{
 	ParamLabels: []string{"Probabilidad (p)", "Ensayos (N)"},
 	Validate:    validateBinomial,
 	Construct: func(params []float64) (distributions.Distribution, error) {
-		if idx, err := validateBinomial(params); err != nil {
-			return nil, fmt.Errorf("param %d: %w", idx, err)
+		n, p, err := bindBinomial(params)
+		if err != nil {
+			return nil, err
 		}
-		// UI order (p, n) → constructor order (n, p).
-		return distributions.NewBinomial(int(params[1]), params[0])
+		return distributions.NewBinomial(n, p)
 	},
 	NewSampler: func(params []float64) (Sampler, error) {
-		if idx, err := validateBinomial(params); err != nil {
-			return nil, fmt.Errorf("param %d: %w", idx, err)
+		n, p, err := bindBinomial(params)
+		if err != nil {
+			return nil, err
 		}
-		p, n := params[0], int(params[1])
 		return &tableSampler{
 			buildTable: func() ([]float64, error) {
 				if sim.BinomialUsesTable(n, p) {

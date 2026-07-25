@@ -37,6 +37,27 @@ func PoissonCDF(lambda float64, k int) float64 {
 	return math.Exp(logPoissonPMF(lambda, maxValue)) * sum
 }
 
+// PoissonPMFRow returns the PMF over [0, kMax] with the same extent rule
+// as PoissonCDFTable (lambda + 4*sqrt(lambda) + 1): a forward recurrence
+// from the e^-lambda seed, one O(range) pass per render (design §3.3).
+// Unlike the CDF table the values are NOT renormalized — they stay raw
+// PMFs so they agree with the pointwise closed form within ~1 ulp.
+func PoissonPMFRow(lambda float64) []float64 {
+	stdDev := math.Sqrt(lambda)
+	kMax := int(lambda+4.0*stdDev) + 1
+	if kMax < 1 {
+		kMax = 1
+	}
+	row := make([]float64, kMax+1)
+	pmf := math.Exp(-lambda)
+	row[0] = pmf
+	for k := 1; k <= kMax; k++ {
+		pmf *= lambda / float64(k)
+		row[k] = pmf
+	}
+	return row
+}
+
 // PoissonCDFTable returns the normalized CDF lookup table for Poisson
 // simulation: the materialized adapter over the same core (design §2.1),
 // preserving BuildPoissonCDFTable line-for-line. Size is approximately
