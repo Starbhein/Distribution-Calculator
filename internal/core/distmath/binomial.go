@@ -75,6 +75,19 @@ func BinomialCDF(n int, p float64, k int) float64 {
 	return math.Exp(logBinomialPMF(n, p, maxValue)) * sum
 }
 
+// BinomialPMFRow returns the normalized PMF over the full support [0, n]:
+// the materialized-PMF adapter over the same binomialCDFCore (design §3.3).
+// One seed-anchored O(range) pass — the chart render path consumes this
+// instead of one closed-form PMF call per bar (spec §5).
+func BinomialPMFRow(n int, p float64) []float64 {
+	row := make([]float64, n+1)
+	_, sum := binomialCDFCore(n, p, n, row)
+	for i := range row {
+		row[i] /= sum
+	}
+	return row
+}
+
 // BinomialCDFTable returns the normalized CDF lookup table over [0, n]: the
 // materialized adapter over the same binomialCDFCore (design §2.1),
 // preserving BuildBinomialCDFTable's normalize-and-cumsum line-for-line.
