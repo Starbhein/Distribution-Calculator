@@ -5,9 +5,9 @@ import (
 	"math"
 	"math/rand/v2"
 	"sort"
-)
 
-const epsilonSignificantEpsilon = 1e-18
+	"github.com/Starbhein/DistCalc/internal/core/distmath"
+)
 
 type SimulatorEngine struct {
 	prng *rand.Rand
@@ -21,36 +21,16 @@ func NewSimulatorEngine(seed1, seed2 uint64) *SimulatorEngine {
 
 // BuildBinomialCDFTable constructs the CDF lookup table for binomial simulation.
 // Callers can pre-build and share this table across workers.
+// It delegates to the unified distmath kernel (design §2.1); the sim-local
+// recurrence and epsilonSignificantEpsilon are gone — distmath.EpsilonSignificantValue
+// is THE single truncation epsilon (design §2.3).
 func BuildBinomialCDFTable(n int, success float64) []float64 {
-	preCalcI := (1.0 - success) / success
-	preCalcR := success / (1.0 - success)
-	cdfTable := make([]float64, n+1)
-	maxValue := int(float64(n) * success)
-	cumulative := 1.0
-	sum := 1.0
-	cdfTable[maxValue] = 1.0
-	for i := maxValue - 1; i >= 0 && cumulative >= sum*epsilonSignificantEpsilon; i-- {
-		cumulative *= preCalcI * (float64(i+1) / float64(n-(i+1)+1))
-		sum += cumulative
-		cdfTable[i] = cumulative
-	}
-	cumulative = 1.0
-	for i := maxValue + 1; i <= n && cumulative >= sum*epsilonSignificantEpsilon; i++ {
-		cumulative *= preCalcR * (float64(n-i+1) / float64(i))
-		sum += cumulative
-		cdfTable[i] = cumulative
-	}
-	cdfTable[0] /= sum
-	for i := 1; i <= n; i++ {
-		cdfTable[i] = (cdfTable[i] / sum) + cdfTable[i-1]
-	}
-	cdfTable[n] = 1.0
-	return cdfTable
+	return distmath.BinomialCDFTable(n, success)
 }
 
 func (engine *SimulatorEngine) FillBinomial(buffer []float64, n int, success float64, cdfTable []float64) error {
-	variance := float64(n) * success * (1.0 - success)
-	if variance > 9.0 {
+	if !BinomialUsesTable(n, success) {
+		variance := float64(n) * success * (1.0 - success)
 		stdDev := math.Sqrt(variance)
 		avg := float64(n) * success
 		for i := range buffer {
@@ -79,26 +59,9 @@ func (engine *SimulatorEngine) FillBinomial(buffer []float64, n int, success flo
 
 // BuildPoissonCDFTable constructs the CDF lookup table for Poisson simulation.
 // Size is approximately lambda + 4*sqrt(lambda), which captures >99.99% of probability mass.
+// It delegates to the unified distmath kernel (design §2.1).
 func BuildPoissonCDFTable(lambda float64) []float64 {
-	stdDev := math.Sqrt(lambda)
-	kMax := int(lambda+4.0*stdDev) + 1
-	if kMax < 1 {
-		kMax = 1
-	}
-	cdfTable := make([]float64, kMax+1)
-	pmf := math.Exp(-lambda)
-	cdfTable[0] = pmf
-	for k := 1; k <= kMax; k++ {
-		pmf *= lambda / float64(k)
-		cdfTable[k] = cdfTable[k-1] + pmf
-	}
-	// Normalize to ensure last element is exactly 1.0
-	last := cdfTable[kMax]
-	for k := range cdfTable {
-		cdfTable[k] /= last
-	}
-	cdfTable[kMax] = 1.0
-	return cdfTable
+	return distmath.PoissonCDFTable(lambda)
 }
 
 func (engine *SimulatorEngine) FillPoisson(buffer []float64, lambda float64, cdfTable []float64) error {
@@ -148,57 +111,13 @@ func (engine *SimulatorEngine) FillPoisson(buffer []float64, lambda float64, cdf
 
 // BuildHypergeometricCDFTable constructs the CDF lookup table for hypergeometric simulation.
 // Parameters are float64 for API compatibility but converted to int internally.
+// It delegates to the unified distmath kernel (design §2.1).
 func BuildHypergeometricCDFTable(m, nsample, n float64) ([]float64, float64, float64, error) {
-	if nsample > n {
-		return nil, 0, 0, errors.New("the sample size must be lower than the N population size")
+	table, startK, maxK, err := distmath.HypergeometricCDFTable(int(m), int(nsample), int(n))
+	if err != nil {
+		return nil, 0, 0, err
 	}
-	// Convert to int for internal precision
-	M := int(m)
-	N := int(n)
-	K := int(nsample)
-	startK := 0
-	if K > (N - M) {
-		startK = K - (N - M)
-	}
-	maxK := K
-	if M < K {
-		maxK = M
-	}
-	tableSize := maxK - startK + 1
-	cdfTable := make([]float64, tableSize)
-
-	// Compute initial PDF at startK using log-gamma
-	gammaM, _ := math.Lgamma(m + 1)
-	gammaK, _ := math.Lgamma(float64(startK) + 1)
-	gammaMminK, _ := math.Lgamma(m - float64(startK) + 1)
-	gammaNminM, _ := math.Lgamma(n - m + 1)
-	gammaSampleMinK, _ := math.Lgamma(nsample - float64(startK) + 1)
-	gammaNminMminSamplePlusK, _ := math.Lgamma(n - m - nsample + float64(startK) + 1)
-	gammaNf, _ := math.Lgamma(n + 1)
-	gammaSamplef, _ := math.Lgamma(nsample + 1)
-	gammaNminSample, _ := math.Lgamma(n - nsample + 1)
-
-	res := (gammaM - gammaK - gammaMminK) +
-		(gammaNminM - gammaSampleMinK - gammaNminMminSamplePlusK) -
-		(gammaNf - gammaSamplef - gammaNminSample)
-	initialPdf := math.Exp(res)
-
-	// Build PMF values from startK to maxK
-	pdf := initialPdf
-	sum := 0.0
-	for idx, k := 0, startK; k <= maxK; idx, k = idx+1, k+1 {
-		if idx > 0 {
-			pdf *= float64((K-k+1)*(M-k+1)) / float64(k*(N-M-K+k))
-		}
-		sum += pdf
-		cdfTable[idx] = sum
-	}
-	// Normalize
-	for i := range cdfTable {
-		cdfTable[i] /= sum
-	}
-	cdfTable[tableSize-1] = 1.0
-	return cdfTable, float64(startK), float64(maxK), nil
+	return table, float64(startK), float64(maxK), nil
 }
 
 func (engine *SimulatorEngine) FillHypergeometric(buffer []float64, m, nsample, n float64, cdfTable []float64) error {
@@ -218,10 +137,10 @@ func (engine *SimulatorEngine) FillHypergeometric(buffer []float64, m, nsample, 
 		maxK = M
 	}
 
-	// Compute variance for normal approximation check
-	// Variance = K * (M/N) * ((N-M)/N) * ((N-K)/(N-1))
-	variance := float64(K) * (float64(M) / float64(N)) * (float64(N-M) / float64(N)) * (float64(N-K) / float64(N-1))
-	if variance > 9.0 {
+	// Gate on the single-sourced predicate (design §2.4); the variance itself
+	// is still needed for the normal path's stdDev.
+	if !HypergeometricUsesTable(m, nsample, n) {
+		variance := hypergeometricVariance(M, K, N)
 		mean := float64(K) * float64(M) / float64(N)
 		stdDev := math.Sqrt(variance)
 		for i := range buffer {
