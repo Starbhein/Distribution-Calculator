@@ -48,6 +48,9 @@ func (h Hypergeometric) PMF(k int) (float64, error) {
 	return distmath.HypergeometricPMF(h.M, h.NSample, h.N, k), nil
 }
 
+// CDF delegates to the distmath pointwise kernel (design §2.1): the same
+// mode-anchored recurrence core, allocation-free per call. The k guards are
+// preserved exactly (no behavior change).
 func (h Hypergeometric) CDF(k int) (float64, error) {
 	if k > h.NSample {
 		return 0, errors.New("k must be lower or equals than the sample's size")
@@ -56,28 +59,5 @@ func (h Hypergeometric) CDF(k int) (float64, error) {
 	if k < 0 {
 		return 0, errors.New("k must be greater than 0")
 	}
-	maxValue := min(k, int(float64(h.NSample)*float64(h.M)/float64(h.N)))
-	sum := 1.0
-	cumulative := 1.0
-	for i := maxValue - 1; i >= 0 && cumulative >= sum*epsilonSignificantValue; i-- {
-		cumulative *= (float64(i+1) / float64(h.M-(i+1)+1)) * (float64(h.N-h.M-h.NSample+(i+1)) / float64(h.NSample-(i+1)+1))
-		sum += cumulative
-	}
-	cumulative = 1.0
-	for i := maxValue + 1; i <= k && cumulative >= sum*epsilonSignificantValue; i++ {
-		cumulative *= (float64(h.M-i+1) / float64(i)) * (float64(h.NSample-i+1) / float64(h.N-h.M-h.NSample+i))
-		sum += cumulative
-	}
-	mFactorial, _ := math.Lgamma(float64(h.M + 1))
-	kFactorial, _ := math.Lgamma(float64(maxValue + 1))
-	mminkFactorial, _ := math.Lgamma(float64(h.M - maxValue + 1))
-	nminmFactorial, _ := math.Lgamma(float64(h.N - h.M + 1))
-	nminkFactorial, _ := math.Lgamma(float64(h.NSample - maxValue + 1))
-	nminmnk, _ := math.Lgamma(float64(h.N - h.M - h.NSample + maxValue + 1))
-	nsampleFactorial, _ := math.Lgamma(float64(h.NSample + 1))
-	nminsampleFactorial, _ := math.Lgamma(float64(h.N - h.NSample + 1))
-	nFactorial, _ := math.Lgamma(float64(h.N + 1))
-	meanPMF := mFactorial - kFactorial - mminkFactorial + nminmFactorial - nminkFactorial - nminmnk + nsampleFactorial + nminsampleFactorial - nFactorial
-
-	return math.Exp(meanPMF) * sum, nil
+	return distmath.HypergeometricCDF(h.M, h.NSample, h.N, k), nil
 }
