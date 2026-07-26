@@ -42,10 +42,14 @@ _U01_SCALE = 1.0 / (1 << 53)
 
 
 def _next_u01(state):
-    """Advance the LCG; return (new_state, u) with u in (0, 1).
+    """Advance the LCG; return (new_state, u) with u in (0, 1].
 
-    The +0.5 offset keeps u off both endpoints, so log(u) is always finite
-    without a zero guard (mirrors the Go FillGeometric u == 0 guard).
+    The +0.5 offset keeps u off 0, so log(u) is always finite without a
+    zero guard (mirrors the Go FillGeometric u == 0 guard). It does NOT
+    keep u off 1: (2^53 - 1 + 0.5) / 2^53 rounds to exactly 1.0 in float64
+    (round-half-to-even), so u == 1.0 is reachable. Then log(1.0) == 0
+    gives k == 0 in the inverse-CDF draw; the k >= 1 clamp in
+    geometric_fill_inverse_cdf maps it to k = 1, the correct boundary draw.
     """
     state = (state * _LCG_MULT + _LCG_INC) & _MASK64
     return state, ((state >> 11) + 0.5) * _U01_SCALE
@@ -260,6 +264,8 @@ def geometric_fill_inverse_cdf(m, p, state):
     for _ in range(m):
         state, u = _next_u01(state)
         k = math.ceil(math.log(u) / log1mp)
+        # u == 1.0 is reachable (see _next_u01): log(1.0) == 0 -> k == 0,
+        # and the clamp maps it to k = 1 — no crash, no silent corruption.
         total += k if k >= 1 else 1
     return state, total
 

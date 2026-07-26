@@ -56,15 +56,16 @@ coinciden con los valores fijados en los tests de Go:
   (pin Go: `TestBinomial`, `internal/core/distributions/binomial_test.go`)
 - [ ] Binomial n=10, p=0.1: CDF(2) exacta = 1162261467/1250000000 = **0.9298091736**
   (pin Go: `TestBinomialCDFPinnedValues`, suma PMF(0..2), `cdf_test.go`)
-- [ ] Binomial n=1000, p=0.9: CDF(999) exacta = 1 − 9¹⁰⁰⁰/10¹⁰⁰⁰ ≈ 1 − 1.7e-47;
+- [ ] Binomial n=1000, p=0.9: CDF(999) exacta = 1 − 9¹⁰⁰⁰/10¹⁰⁰⁰ ≈ 1 − 1.75e-46;
   la recurrencia float64 debe caer dentro de 1e-12 de 1
   (pin Go: `TestBinomialCDFPinnedValues`, caso benchmark, `cdf_test.go`)
 - [ ] Todas las filas exactas suman exactamente 1; las filas float64 suman 1
   dentro de ~1 ulp.
 
 Nota: el caso hipergeométrico N=50, M=20, n=10 es un caso de precisión del
-diseño, NO un pin de Go — su PMF(0) exacta es C(30,10)/C(50,10) =
-3393/1160054 ≈ 0.002925, distinta del pin 14/55 (que vive en M=3, N=12, n=4).
+diseño, NO un pin de Go — su PMF(0) exacta es C(20,0)·C(30,10)/C(50,10) =
+30045015/10272278170 = 3393/1160054 ≈ 0.0029248638425452608, distinta del
+pin 14/55 (que vive en M=3, N=12, n=4).
 
 ## Qué NO se afirma
 
