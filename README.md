@@ -134,8 +134,43 @@ internal/
 
 - **Tablas CDF compartidas** entre workers (Binomial, Poisson, Hipergeométrica)
 - **Aproximación normal** cuando varianza > 9
-- **Método híbrido** para Geométrica (transformada inversa O(1) para p≥0.01, iterativo para p<0.01)
+- **Geométrica por transformada inversa O(1)** para todo p (`k = ⌈log(u)/log1p(−p)⌉`, un draw por muestra)
 - **Precisión de punto flotante**: log-gamma para factoriales, `math.Expm1` para cancelación catastrófica
+
+## ⚡ Rendimiento y precisión
+
+### Resultados archivados
+
+Speedups medidos al momento del merge en la máquina de desarrollo; **baseline = commit previo a cada PR**. No son promesas absolutas entre máquinas (ver «Qué NO afirmamos»).
+
+| Speedup | Algoritmo | Procedencia |
+| ------- | --------- | ----------- |
+| ≈11× | Barrido del soporte hipergeométrico (~4 920 → ~436 ns/op) | Medido al mergear PR #10; baseline = commit previo al merge (ver descripción del PR y reporte de archivo `optimize-distribution-processing`) |
+| ≈284× | `FillGeometric` p=0.001, 1e6 muestras (~2.197 s → ~7.74 ms) | Medido al mergear PR #10; baseline = commit previo al merge (misma fuente) |
+| ≈4.1× | CDF binomial (n=1000, ~888 → ~214.9 ns/op) | Medido al mergear PR #11; baseline = commit previo al merge (misma fuente) |
+
+### Cómo reproducir
+
+```bash
+make bench           # benchmarks de Go, flags fijados (-benchtime=1s -count=5)
+make bench-precision # valores fijados + triangulación + momentos 1e5 y 1e7 (pesado)
+make bench-compare   # barrido Python stdlib: clases de algoritmos (opcional; necesita python3)
+```
+
+`make bench-precision` exporta `DISTCALC_HEAVY=1` para incluir la variante pesada de 1e7 muestras; en `make test` y `make test-short` ese test se **omite** siempre.
+
+### Qué NO afirmamos
+
+- **Sin ns/op absolutos entre máquinas**: los números archivados son de UNA máquina en el momento del merge; la señal robusta son las pendientes de crecimiento y los órdenes de magnitud.
+- **Sin titular «Go > Python»**: `benchmarks/compare.py` nunca ejecuta ni parsea Go; compara CLASES DE ALGORITMOS dentro de Python (inversa-CDF O(1) vs bucle de ensayos O(1/p); recurrencia de fila O(rango) vs forma cerrada ingenua por punto). Los tiempos de Go salen de `make bench` y la correlación es manual.
+- **Sin gates de CI**: todos estos targets son informativos; ningún benchmark bloquea merges.
+
+### Método y caveats
+
+- **Flags fijados**: `-benchtime=1s -count=5` en `make bench`; Go 1.26 (ver `go.mod`).
+- **Precisión**: valores fijados con tolerancia 1e-12 en `internal/core/distmath` (PMF/CDF hipergeométrica, binomial y poisson), verificación cruzada contra referencias de racionales exactos (`math.comb` + `fractions.Fraction`) vía `make bench-compare`, y tests de momentos geométricos contra los valores teóricos (1e5 muestras en todo run; 1e7 solo con `DISTCALC_HEAVY=1`).
+- **Forma del barrido reproducible**: los exponentes de crecimiento (lineal vs cuadrático en hipergeométrica; plano vs ∝1/p en geométrica) se reproducen en cualquier máquina con `make bench-compare`. Método, tamaños y checklist de corrección: `benchmarks/README.md`.
+- **Ruido**: en máquinas compartidas las piernas pequeñas varían; `make bench` fija `-count=5` y `compare.py` usa mediana de ≥3 repeticiones, pero los ns/op individuales pueden moverse.
 
 ## 🛠️ Stack tecnológico
 
