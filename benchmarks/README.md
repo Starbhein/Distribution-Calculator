@@ -11,11 +11,11 @@ exponentes de crecimiento.
 
 1. Requisito: **Python 3.8+** (`math.comb`); sin dependencias externas ni
    `requirements.txt`.
-2. Ejecutar: `python3 benchmarks/compare.py` (tarda segundos; la pierna
-   geométrica p=0.0001 hace 2e7 iteraciones).
+2. Ejecutar: `python3 benchmarks/compare.py` (tarda segundos; el tramo
+   geométrico p=0.0001 hace 2e7 iteraciones).
 3. Verificar: los valores exactos impresos deben coincidir con la checklist
-   de abajo. Cuando exista el rewrite del Makefile (PR 3 de este cambio),
-   `make bench-compare` será un atajo equivalente con guarda de `python3`.
+   de abajo. `make bench-compare` es un atajo equivalente con guarda de
+   `python3`.
 
 ## Método
 
@@ -39,8 +39,8 @@ intermedios no desborden float64 en N=1600; el costo por punto sigue O(k).
 | Hipergeométrica (precisión) | N=50, M=20, n=10 | Caso realista del simulador; C(50,10)≈1e10, trivial para enteros exactos |
 | Binomial (precisión) | n=10, p=0.1 | Caso fijado en los tests de Go (PMF(2)=0.1937102445) |
 | Binomial (precisión) | n=1000, p=0.9 | Caso del BenchmarkCDF de Go; C(1000,k)≈300 dígitos, aún rápido |
-| Barrido hipergeométrico | N ∈ {200,400,800,1600}, M=N/2, n=N/4 → S ∈ {51,101,201,401} | Duplicar N separa pendientes ≈1 vs ≈2; S=401 mantiene la pierna cuadrática en milisegundos |
-| Barrido geométrico | m=2000, p ∈ {0.1, 0.01, 0.001, 0.0001} | Plano vs ×10 por paso (pendiente ≈0 vs ≈1 contra 1/p); peor pierna m/p = 2e7 iteraciones ≈ segundos |
+| Barrido hipergeométrico | N ∈ {200,400,800,1600}, M=N/2, n=N/4 → S ∈ {51,101,201,401} | Duplicar N separa pendientes ≈1 vs ≈2; S=401 mantiene el tramo cuadrático en milisegundos |
+| Barrido geométrico | m=2000, p ∈ {0.1, 0.01, 0.001, 0.0001} | Plano vs ×10 por paso (pendiente ≈0 vs ≈1 contra 1/p); peor tramo m/p = 2e7 iteraciones ≈ segundos |
 
 ## Checklist de corrección reproducible
 
@@ -74,7 +74,7 @@ pin 14/55 (que vive en M=3, N=12, n=4).
 - Ningún titular "Go > Python": el script nunca ejecuta ni parsea Go; los
   tiempos de Go salen de `make bench` y la correlación es manual.
 - Ruido de timing: mediana de ≥3 repeticiones (`statistics.median`), pero en
-  máquinas compartidas las piernas pequeñas pueden variar; las pendientes
+   máquinas compartidas los tramos pequeños pueden variar; las pendientes
   log-log son la señal robusta.
 - El drift relativo máximo se reporta sobre masa ≥ 1e-15: el error relativo
   en el polvo de la cola lejana es ruido, no señal.
@@ -82,4 +82,4 @@ pin 14/55 (que vive en M=3, N=12, n=4).
 ## Siguiente paso
 
 Leer junto a `make bench` (benchmarks de Go con etiquetas de procedencia) y
-la sección «⚡ Rendimiento y precisión» del README raíz (PR 3 de este cambio).
+la sección «⚡ Rendimiento y precisión» del README raíz.
