@@ -165,12 +165,12 @@ make bench-compare   # barrido Python stdlib: clases de algoritmos (opcional; ne
 - **Sin titular «Go > Python»**: `benchmarks/compare.py` nunca ejecuta ni parsea Go; compara CLASES DE ALGORITMOS dentro de Python (inversa-CDF O(1) vs bucle de ensayos O(1/p); recurrencia de fila O(rango) vs forma cerrada ingenua por punto). Los tiempos de Go salen de `make bench` y la correlación es manual.
 - **Sin gates de CI**: todos estos targets son informativos; ningún benchmark bloquea merges.
 
-### Método y caveats
+### Método y advertencias
 
 - **Flags fijados**: `-benchtime=1s -count=5` en `make bench`; Go 1.26 (ver `go.mod`).
 - **Precisión**: valores fijados con tolerancia 1e-12 en `internal/core/distmath` (PMF/CDF hipergeométrica, binomial y poisson), verificación cruzada contra referencias de racionales exactos (`math.comb` + `fractions.Fraction`) vía `make bench-compare`, y tests de momentos geométricos contra los valores teóricos (1e5 muestras en todo run; 1e7 solo con `DISTCALC_HEAVY=1`).
 - **Forma del barrido reproducible**: los exponentes de crecimiento (lineal vs cuadrático en hipergeométrica; plano vs ∝1/p en geométrica) se reproducen en cualquier máquina con `make bench-compare`. Método, tamaños y checklist de corrección: `benchmarks/README.md`.
-- **Ruido**: en máquinas compartidas las piernas pequeñas varían; `make bench` fija `-count=5` y `compare.py` usa mediana de ≥3 repeticiones, pero los ns/op individuales pueden moverse.
+- **Ruido**: en máquinas compartidas los tramos pequeños varían; `make bench` fija `-count=5` y `compare.py` usa mediana de ≥3 repeticiones, pero los ns/op individuales pueden moverse.
 
 ## 🛠️ Stack tecnológico
 
